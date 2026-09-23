@@ -11,6 +11,15 @@ const { sendCampaign, newProductsHtml, welcomeHtml, postToTelegram, buildSitemap
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+// نبضة تشخيص: تسجل نسخة الصفحة التي يحملها الزائر فعلاً
+app.get('/api/ping', (req, res) => {
+  try {
+    fs.appendFileSync(path.join(DATA, 'views.log'),
+      `${new Date().toISOString()} v=${String(req.query.v || '?').slice(0, 20)} ua=${String(req.headers['user-agent'] || '').slice(0, 120)}\n`);
+  } catch {}
+  res.json({ ok: true });
+});
 app.use(express.static(path.join(__dirname, 'public'), { etag: false, maxAge: 0, setHeaders: (res, fp) => { if (fp.endsWith('.html')) res.setHeader('Cache-Control', 'no-store'); } }));
 
 const DATA = path.join(__dirname, 'data');
