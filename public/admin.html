@@ -9,7 +9,9 @@
 .glass{background:rgba(255,255,255,.045);border:1px solid rgba(212,175,55,.22)}
 .gold-btn{background:linear-gradient(135deg,#b8912b,#f3dfa0 50%,#b8912b);color:#241a05;font-weight:900}
 .inp{background:rgba(255,255,255,.08);border:1px solid rgba(212,175,55,.35);border-radius:.75rem;padding:.5rem .75rem;font-size:.85rem;width:100%}
-select.inp option{background:#14141C}:focus-visible{outline:2px solid #D4AF37;outline-offset:2px}</style>
+select.inp option{background:#14141C}:focus-visible{outline:2px solid #D4AF37;outline-offset:2px}
+body{overflow-x:hidden}img{max-width:100%}
+@media (max-width:640px){table{font-size:.72rem}th.p-2,td.p-2{padding:.4rem .3rem}.max-w-5xl{padding:.7rem}}</style>
 </head>
 <body>
 <div id="upd" class="hidden" style="position:fixed;top:0;right:0;left:0;z-index:99;background:linear-gradient(90deg,#8a6a1c,#D4AF37,#8a6a1c);color:#1d1404;font-weight:900;text-align:center;padding:10px">تحديث جديد متوفر — <button onclick="location.reload()" style="text-decoration:underline">اضغط هنا للتحديث</button></div>
@@ -116,6 +118,7 @@ function applyAdmin(){document.querySelectorAll('[data-i18n]').forEach(el=>{cons
 document.querySelectorAll('[data-i18n-ph]').forEach(el=>el.placeholder=at(el.dataset.i18nPh));
 document.documentElement.lang=ALANG;document.documentElement.dir=ALANG==='en'?'ltr':'rtl';}
 function enter(){KEY=document.getElementById('key').value;load();loadArts();}
+try{const qk=new URLSearchParams(location.search).get('key');if(qk){document.getElementById('key').value=qk;enter();}}catch{}
 async function api(path,body){const r=await fetch(path+(body?'':'?key='+encodeURIComponent(KEY)),{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify({...body,key:KEY}):undefined});if(r.status===401){alert(at('badPass'));throw 0;}return r.json();}
 async function load(){try{
 const st=await api('/api/admin/settings');ALANG=st.admin.lang;applyAdmin();

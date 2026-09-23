@@ -532,7 +532,7 @@ app.get('/p/:id', (req, res) => {
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Cairo:wght@400;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <script type="application/ld+json">${JSON.stringify(jsonld)}</script>
-<style>body{font-family:'Cairo',system-ui;background:radial-gradient(900px 400px at 80% 0%,#2a2113,transparent),#0A0A0F;color:#F5F1E6}.font-amiri{font-family:'Amiri',serif}.gold-text{background:linear-gradient(120deg,#8a6a1c,#D4AF37 35%,#F7E7B0 50%,#D4AF37 65%,#8a6a1c);-webkit-background-clip:text;background-clip:text;color:transparent}.glass{background:rgba(255,255,255,.045);border:1px solid rgba(212,175,55,.22);backdrop-filter:blur(14px)}.gold-btn{background:linear-gradient(135deg,#b8912b,#f3dfa0 50%,#b8912b);color:#241a05;font-weight:900}:focus-visible{outline:2px solid #D4AF37;outline-offset:2px}</style></head>
+<style>body{font-family:'Cairo',system-ui;background:radial-gradient(900px 400px at 80% 0%,#2a2113,transparent),#0A0A0F;color:#F5F1E6;overflow-x:hidden}img{max-width:100%}.font-amiri{font-family:'Amiri',serif}.gold-text{background:linear-gradient(120deg,#8a6a1c,#D4AF37 35%,#F7E7B0 50%,#D4AF37 65%,#8a6a1c);-webkit-background-clip:text;background-clip:text;color:transparent}.glass{background:rgba(255,255,255,.045);border:1px solid rgba(212,175,55,.22);backdrop-filter:blur(14px)}.gold-btn{background:linear-gradient(135deg,#b8912b,#f3dfa0 50%,#b8912b);color:#241a05;font-weight:900}:focus-visible{outline:2px solid #D4AF37;outline-offset:2px}</style></head>
 <body><main class="max-w-3xl mx-auto p-4">
 <a href="/" class="text-yellow-200/80">${T.back}</a>
 <div class="glass rounded-3xl p-6 mt-3">
@@ -556,7 +556,14 @@ ${related.length ? `<h2 class="font-black mt-6 mb-2 text-lg">${T.related}</h2><d
 <select id="rr" class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-xl text-sm"><option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option></select>
 <input id="rt" placeholder="${T.opinion}" class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-xl flex-1 text-sm"/>
 <button onclick="sendRev()" class="gold-btn px-4 py-1.5 rounded-xl text-sm">${T.rate}</button></div></div>
-</main><script>async function sendRev(){const r=await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:${JSON.stringify(p.id)},name:document.getElementById('rn').value,rating:document.getElementById('rr').value,text:document.getElementById('rt').value})});if(r.ok)location.reload();else alert('اكتب تقييماً صحيحاً');}</script>
+</main>
+<div class="md:hidden fixed bottom-0 right-0 left-0 z-50 p-3" style="background:rgba(10,10,15,.92);border-top:1px solid rgba(212,175,55,.35)">
+<div class="flex gap-2 items-center max-w-3xl mx-auto">
+<div class="gold-text font-black text-xl whitespace-nowrap">${escHtml(symb)}${escHtml(pd)}</div>
+<a href="/go/${encodeURIComponent(p.id)}" target="_blank" rel="nofollow sponsored" class="gold-btn flex-1 text-center rounded-full py-2.5 font-black">${T.buy}</a>
+</div></div>
+<div class="h-20 md:hidden"></div>
+<script>async function sendRev(){const r=await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:${JSON.stringify(p.id)},name:document.getElementById('rn').value,rating:document.getElementById('rr').value,text:document.getElementById('rt').value})});if(r.ok)location.reload();else alert('اكتب تقييماً صحيحاً');}</script>
 </body></html>`);
   } catch (e) { res.status(500).type('text/html').send('خطأ داخلي'); }
 });

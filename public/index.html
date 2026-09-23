@@ -14,7 +14,25 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 :root{--gold:#D4AF37;--champ:#F3DFA0;--ink:#0A0A0F;--ivory:#F5F1E6}
-body{font-family:'Cairo',system-ui;background:radial-gradient(1000px 500px at 85% -5%,#2a2113 0%,transparent 60%),radial-gradient(800px 500px at 0% 20%,#191423 0%,transparent 55%),#0A0A0F;color:var(--ivory)}
+html{overflow-x:clip}
+body{font-family:'Cairo',system-ui;background:radial-gradient(1000px 500px at 85% -5%,#2a2113 0%,transparent 60%),radial-gradient(800px 500px at 0% 20%,#191423 0%,transparent 55%),#0A0A0F;color:var(--ivory);overflow-x:hidden}
+img{max-width:100%}
+div,main,section,header,footer,nav,select,input{max-width:100%}
+div{min-width:0}
+@media (max-width:640px){
+ .hero-h{font-size:1.9rem!important;line-height:1.5!important}
+ #grid{gap:.6rem}
+ .tilt{border-radius:1rem!important}
+ header .max-w-6xl{gap:.4rem}
+ .cd-num{font-size:1.15rem!important;padding:.5rem .7rem!important}
+ main,section .max-w-6xl{padding-right:.7rem;padding-left:.7rem}
+}
+@media (min-width:641px) and (max-width:1023px){
+ .hero-h{font-size:2.6rem!important}
+}
+@media (max-height:500px) and (orientation:landscape){
+ .max-w-6xl.mx-auto.px-4.py-14{padding-top:1.2rem;padding-bottom:1.2rem}
+}
 .font-amiri{font-family:'Amiri',serif}
 .gold-text{background:linear-gradient(120deg,#8a6a1c,#D4AF37 35%,#F7E7B0 50%,#D4AF37 65%,#8a6a1c);-webkit-background-clip:text;background-clip:text;color:transparent}
 .glass{background:rgba(255,255,255,.045);border:1px solid rgba(212,175,55,.22);backdrop-filter:blur(14px)}
@@ -48,8 +66,8 @@ select option{background:#14141C}
 <nav class="hidden md:flex gap-5 text-sm opacity-80 mr-4">
 <a href="#grid-sec" class="hover:text-yellow-200" data-i18n="navP">المنتجات</a><a href="#offer" class="hover:text-yellow-200" data-i18n="navO">عرض اليوم</a><a href="#trust" class="hover:text-yellow-200" data-i18n="navT">لماذا نحن</a>
 </nav>
-<div class="mr-auto flex gap-2 items-center">
-<input id="q" data-i18n-ph="searchPh" placeholder="ابحث عن كنزك..." class="bg-white/10 border border-yellow-700/40 px-3 py-1.5 rounded-full w-32 text-sm placeholder:text-stone-400"/>
+<div class="mr-auto flex gap-2 items-center flex-wrap justify-end">
+<input id="q" data-i18n-ph="searchPh" placeholder="ابحث عن كنزك..." class="bg-white/10 border border-yellow-700/40 px-3 py-1.5 rounded-full w-32 sm:w-40 text-sm placeholder:text-stone-400 min-w-0"/>
 <select id="clang" title="اللغة / Language" onchange="setPref()" class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-full text-sm"><option value="ar">عربي</option><option value="en">EN</option></select>
 <select id="ccur" title="العملة" onchange="setPref()" class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-full text-sm"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option><option>SAR</option><option>AED</option></select>
 <button onclick="toggleFav()" class="border border-pink-500/60 text-pink-300 px-3 py-1.5 rounded-full text-sm">♥ <span id="favc">0</span></button>
@@ -63,7 +81,7 @@ select option{background:#14141C}
 <div class="orb w-80 h-80" style="background:#3b2a6d;bottom:-140px;right:-60px"></div>
 <div class="max-w-6xl mx-auto px-4 py-14 grid md:grid-cols-2 gap-10 items-center">
 <div class="reveal in">
-<div class="font-amiri text-4xl md:text-6xl leading-[1.25]"><span data-i18n="heroA">تحف مختارة،</span> <span class="gold-text" data-i18n="heroB">تليق بذوقك الرفيع</span></div>
+<div class="font-amiri hero-h text-4xl md:text-6xl leading-[1.25]"><span data-i18n="heroA">تحف مختارة،</span> <span class="gold-text" data-i18n="heroB">تليق بذوقك الرفيع</span></div>
 <p class="mt-4 text-stone-300 leading-8" data-i18n="heroSub">متجر يتجدد تلقائياً بأرقى المنتجات العالمية، يختار لك الأفضل ويوصله لباب شغفك — مع عروض حصرية تصل بريدك قبل الجميع.</p>
 <div class="flex gap-3 mt-6 flex-wrap">
 <a href="#grid-sec" class="gold-btn px-7 py-3 rounded-full" data-i18n="shopNow">تسوق الآن</a>
@@ -97,7 +115,7 @@ select option{background:#14141C}
 </select>
 </div>
 <div id="cats" class="flex gap-2 flex-wrap mb-5"></div>
-<div id="grid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+<div id="grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4"></div>
 </main>
 
 <!-- عرض اليوم -->
@@ -106,7 +124,7 @@ select option{background:#14141C}
 <div class="orb w-72 h-72" style="background:#6b4d0f;top:-100px;right:20%"></div>
 <div class="font-amiri text-3xl"><span data-i18n="offerA">عرض اليوم</span> <span class="gold-text" data-i18n="offerB">الذهبي</span></div>
 <p class="text-sm opacity-70 mt-1" data-i18n="offerSub">خصم إضافي على التشكيلة — ينتهي منتصف الليل</p>
-<div class="flex justify-center gap-3 mt-4 font-black text-2xl" dir="ltr"><span class="glass rounded-2xl px-4 py-2" id="cd-h">00</span>:<span class="glass rounded-2xl px-4 py-2" id="cd-m">00</span>:<span class="glass rounded-2xl px-4 py-2" id="cd-s">00</span></div>
+<div class="flex justify-center gap-3 mt-4 font-black text-2xl" dir="ltr"><span class="cd-num glass rounded-2xl px-4 py-2" id="cd-h">00</span>:<span class="cd-num glass rounded-2xl px-4 py-2" id="cd-m">00</span>:<span class="cd-num glass rounded-2xl px-4 py-2" id="cd-s">00</span></div>
 <a href="#grid-sec" class="gold-btn inline-block mt-5 px-8 py-3 rounded-full" data-i18n="grab">اقتنص العرض</a>
 </div>
 </section>
