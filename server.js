@@ -167,7 +167,7 @@ app.get('/go/:id', (req, res) => {
 });
 
 // لوحة الإدارة (بكلمة سر): منتجات حقيقية + أرباح
-app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/admin', (req, res) => res.set('Cache-Control', 'no-store').sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 function stats() {
   const products = withMeta(readProducts());
