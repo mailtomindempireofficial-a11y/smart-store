@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const multer = require('multer');
 const { searchProducts } = require('./lib/aliexpress');
 const { sendCampaign, newProductsHtml, welcomeHtml, postToTelegram, buildSitemap, escHtml } = require('./lib/marketing');
 
@@ -57,6 +58,21 @@ function publicProduct(p) {
 }
 const adminOk = (req) => String(req.query.key || req.body?.key || '') === String(process.env.ADMIN_PASS || 'admin123');
 const commOf = (p) => Number(p.commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8);
+// رفع الملفات من الجهاز إلى public/uploads
+const UP_DIR = path.join(__dirname, 'public', 'uploads');
+try { fs.mkdirSync(UP_DIR, { recursive: true }); } catch {}
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UP_DIR),
+  filename: (req, file, cb) => {
+    const ext = (path.extname(file.originalname || '').toLowerCase() || '').replace(/[^a-z0-9.]/g, '').slice(0, 8) || '.bin';
+    cb(null, `u${Date.now()}-${Math.round(Math.random() * 1e6)}${ext}`);
+  },
+});
+const IMG_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const VID_MIME = ['video/mp4', 'video/webm', 'video/quicktime'];
+const upImages = multer({ storage, limits: { fileSize: 5 * 1024 * 1024, files: 8 }, fileFilter: (req, f, cb) => cb(null, IMG_MIME.includes(f.mimetype)) }).array('images', 8);
+const upVideo = multer({ storage, limits: { fileSize: 80 * 1024 * 1024, files: 1 }, fileFilter: (req, f, cb) => cb(null, VID_MIME.includes(f.mimetype)) }).single('video');
+const urlOk = (s) => /^(https?:\/\/|\/uploads\/)/i.test(String(s || '').trim());
 
 // عرض المنتجات مع بحث + تصنيف + ترتيب (تفاعلي حقيقي)
 app.get('/api/products', (req, res) => {
@@ -154,24 +170,48 @@ app.get('/api/admin/products', (req, res) => {
   res.json({ ok: true, items: readJson(P_FILE, []) });
 });
 
+// رفع صور من الجهاز (حتى 8 صور، 5MB للصورة)
+app.post('/api/admin/upload-images', (req, res) => {
+  if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  upImages(req, res, (err) => {
+    if (err) return res.status(400).json({ error: 'upload-failed', detail: err.message });
+    const files = (req.files || []).filter((f) => f.size > 0);
+    if (!files.length) return res.status(400).json({ error: 'no-images' });
+    res.json({ ok: true, urls: files.map((f) => `/uploads/${f.filename}`) });
+  });
+});
+
+// رفع فيديو من الجهاز (حتى 80MB: mp4/webm)
+app.post('/api/admin/upload-video', (req, res) => {
+  if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  upVideo(req, res, (err) => {
+    if (err) return res.status(400).json({ error: 'upload-failed', detail: err.message });
+    if (!req.file || !req.file.size) return res.status(400).json({ error: 'no-video' });
+    res.json({ ok: true, url: `/uploads/${req.file.filename}` });
+  });
+});
+
 // إضافة / تعديل منتج حقيقي برابط عمولتك ونسبة ربحك
 app.post('/api/admin/product', (req, res) => {
   try {
     if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
     const { id, title, price, oldPrice, image, url, commission } = req.body || {};
-    if (!String(title || '').trim() || !(Number(price) > 0) || !/^https?:\/\//i.test(String(url || ''))) {
+    if (!String(title || '').trim() || !(Number(price) > 0) || !urlOk(url)) {
       return res.status(400).json({ error: 'invalid-product' });
     }
-    // صور متعددة: سطر لكل رابط (بحد أقصى 8) + الصورة الرئيسية أولاً
+    // صور متعددة: روابط أو ملفات مرفوعة (/uploads/...) — سطر لكل رابط (بحد أقصى 8)
     let images = [];
     if (Array.isArray(req.body?.images)) images = req.body.images;
     else if (typeof req.body?.images === 'string') images = req.body.images.split('\n');
-    images = images.map((s) => String(s).trim()).filter((s) => /^https?:\/\//i.test(s)).slice(0, 8);
+    images = images.map((s) => String(s).trim()).filter(urlOk).slice(0, 8);
     let main = String(image || '').trim();
     if (main && !images.includes(main)) images.unshift(main);
     if (!main && images.length) main = images[0];
-    // فيديو: رابط mp4 مباشر أو يوتيوب
+    // فيديو: رابط mp4 مباشر أو يوتيوب أو ملف مرفوع
     const video = String(req.body?.video || '').trim().slice(0, 500);
+    if (video && !urlOk(video) && !/(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(video)) {
+      return res.status(400).json({ error: 'invalid-video' });
+    }
     const all = readJson(P_FILE, []);
     const item = {
       id: String(id || `my-${Date.now()}`),
@@ -292,7 +332,7 @@ app.get('/p/:id', (req, res) => {
     const vid = String(p.video || '');
     const yt = vid.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/);
     if (yt) videoHtml = `<div class="mt-4"><div class="font-black mb-2">شاهد المنتج بالفيديو</div><iframe class="w-full h-64 rounded-2xl" src="https://www.youtube.com/embed/${yt[1]}" frameborder="0" allowfullscreen loading="lazy"></iframe></div>`;
-    else if (/^https?:\/\//i.test(vid)) videoHtml = `<div class="mt-4"><div class="font-black mb-2">شاهد المنتج بالفيديو</div><video class="w-full rounded-2xl bg-black" controls preload="none" src="${escHtml(vid)}"></video></div>`;
+    else if (urlOk(vid)) videoHtml = `<div class="mt-4"><div class="font-black mb-2">شاهد المنتج بالفيديو</div><video class="w-full rounded-2xl bg-black" controls preload="none" src="${escHtml(vid)}"></video></div>`;
     res.type('text/html').send(`<!doctype html><html lang="ar" dir="rtl" style="background:#0A0A0F"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${escHtml(p.title)} — $${escHtml(p.price)} | متجري الذكي</title>

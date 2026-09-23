@@ -13,6 +13,10 @@
 <body>
 <div class="max-w-5xl mx-auto p-4">
 <h1 class="font-black text-2xl">لوحة <span class="gold-text">الأرباح</span></h1>
+<div id="storebar" class="glass rounded-2xl p-3 mt-3 text-sm flex gap-4 flex-wrap items-center">
+<span>متصلة بالمتجر: <a href="/" target="_blank" class="text-yellow-200 underline">عرض المتجر</a></span>
+<span id="sb-info">...</span>
+</div>
 <div id="login" class="glass rounded-2xl p-5 mt-4">
 <p class="text-sm opacity-70 mb-2">أدخل كلمة سر الإدارة (ADMIN_PASS)</p>
 <div class="flex gap-2"><input id="key" type="password" class="inp" placeholder="كلمة السر"/><button onclick="enter()" class="gold-btn px-6 rounded-xl">دخول</button></div>
@@ -36,6 +40,14 @@
 <textarea id="f-images" class="inp md:col-span-2" rows="2" placeholder="روابط صور إضافية — سطر لكل صورة (حتى 8)"></textarea>
 <input id="f-video" class="inp" placeholder="رابط فيديو (mp4 أو يوتيوب) — اختياري"/>
 <input id="f-id" type="hidden"/>
+</div>
+<div class="grid md:grid-cols-2 gap-2 mt-2">
+<label class="glass rounded-xl p-3 text-sm cursor-pointer">📷 رفع صور من جهازك (حتى 8)
+<input id="up-imgs" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden" onchange="uploadImages()"/>
+<div id="prev-imgs" class="flex gap-1 mt-2 flex-wrap"></div></label>
+<label class="glass rounded-xl p-3 text-sm cursor-pointer">🎬 رفع فيديو من جهازك (mp4 حتى 80MB)
+<input id="up-vid" type="file" accept="video/mp4,video/webm" class="hidden" onchange="uploadVideo()"/>
+<div id="prev-vid" class="text-xs mt-2 opacity-70"></div></label>
 </div>
 <button onclick="saveProduct()" class="gold-btn px-6 py-2 rounded-xl mt-3">حفظ المنتج</button>
 <button onclick="resetForm()" class="text-xs border border-white/20 px-4 py-2 rounded-xl mt-3">جديد</button>
@@ -69,7 +81,23 @@ document.getElementById('rows').innerHTML=j.rows.map(p=>`<tr class="border-t bor
 async function saveProduct(){const g=id=>document.getElementById(id).value;
 const j=await api('/api/admin/product',{id:g('f-id')||undefined,title:g('f-title'),price:g('f-price'),oldPrice:g('f-old'),image:g('f-img'),images:g('f-images'),video:g('f-video'),url:g('f-url'),commission:g('f-comm')||undefined});
 document.getElementById('fmsg').textContent=j.ok?'تم الحفظ':'بيانات ناقصة: الاسم والسعر ورابط العمولة';if(j.ok)resetForm();load();}
-function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');}
+function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');document.getElementById('up-imgs').value='';document.getElementById('up-vid').value='';document.getElementById('prev-imgs').innerHTML='';document.getElementById('prev-vid').textContent='';}
+async function uploadImages(){const inp=document.getElementById('up-imgs');if(!inp.files.length)return;
+document.getElementById('prev-imgs').innerHTML='جارٍ الرفع...';
+const fd=new FormData();for(const f of inp.files)fd.append('images',f);
+const r=await fetch('/api/admin/upload-images?key='+encodeURIComponent(KEY),{method:'POST',body:fd});const j=await r.json();
+if(!j.ok){document.getElementById('prev-imgs').innerHTML='فشل الرفع';return;}
+const ta=document.getElementById('f-images');ta.value=(ta.value?ta.value+'\n':'')+j.urls.join('\n');
+document.getElementById('prev-imgs').innerHTML=j.urls.map(u=>`<img src="${u}" class="h-14 w-14 object-cover rounded"/>`).join('');}
+async function uploadVideo(){const inp=document.getElementById('up-vid');if(!inp.files.length)return;
+document.getElementById('prev-vid').textContent='جارٍ الرفع...';
+const fd=new FormData();fd.append('video',inp.files[0]);
+const r=await fetch('/api/admin/upload-video?key='+encodeURIComponent(KEY),{method:'POST',body:fd});const j=await r.json();
+if(!j.ok){document.getElementById('prev-vid').textContent='فشل الرفع';return;}
+document.getElementById('f-video').value=j.url;document.getElementById('prev-vid').textContent='تم: '+j.url;}
+async function loadStore(){try{const h=await (await fetch('/api/health')).json();
+document.getElementById('sb-info').textContent=`${h.products} منتج · ${h.subscribers} مشترك · بريد ${h.mail} · تيليجرام ${h.telegram?'مفعل':'—'}`;}catch{}}
+loadStore();
 async function editRow(id){const j=await api('/api/admin/products');const p=(j.items||[]).find(x=>String(x.id)===String(id));if(!p)return;
 const s=(v,id)=>document.getElementById(id).value=v||'';s(p.id,'f-id');s(p.title,'f-title');s(p.price,'f-price');s(p.oldPrice,'f-old');s(p.image,'f-img');
 s((p.images||[]).join('\n'),'f-images');s(p.video,'f-video');s(p.url,'f-url');s(p.commission,'f-comm');window.scrollTo({top:0,behavior:'smooth'});}
