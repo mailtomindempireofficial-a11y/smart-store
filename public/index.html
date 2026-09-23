@@ -193,7 +193,7 @@ async function load(){
 }
 function setCat(c){curCat=c;load();}
 async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=(j.mode==='aliexpress'?t('modeLive'):t('modeDemo'))+` · ${j.products}`;document.getElementById('ver').textContent='v-'+j.boot;
-if(!window._boot)window._boot=j.boot;else if(j.boot&&j.boot!==window._boot)document.getElementById('upd').classList.remove('hidden');
+if(!window._code)window._code=j.code;else if(j.code&&j.code!==window._code)document.getElementById('upd').classList.remove('hidden');
 updFav();}catch{}}
 setInterval(health,60000);
 async function boot(){try{fetch('/api/ping?v='+BUILD);}catch{}

@@ -49,6 +49,7 @@ select.inp option{background:#14141C}:focus-visible{outline:2px solid #D4AF37;ou
 <div class="grid md:grid-cols-3 gap-2">
 <input id="f-title" class="inp" data-i18n-ph="namePh" placeholder="اسم المنتج"/>
 <input id="f-price" type="number" class="inp" data-i18n-ph="pricePh" placeholder="السعر $"/>
+<select id="f-cur" class="inp"><option>USD</option><option>EUR</option><option>GBP</option><option>EGP</option><option>SAR</option><option>AED</option></select>
 <input id="f-old" type="number" class="inp" data-i18n-ph="oldPh" placeholder="السعر قبل الخصم $ (اختياري)"/>
 <input id="f-img" class="inp md:col-span-2" data-i18n-ph="imgPh" placeholder="رابط الصورة" oninput="previewLinks()"/>
 <input id="f-comm" type="number" class="inp" data-i18n-ph="commPh" placeholder="نسبة عمولتك % (مثال 8)"/>
@@ -86,6 +87,7 @@ select.inp option{background:#14141C}:focus-visible{outline:2px solid #D4AF37;ou
 <script>
 const AD={ar:{titleA:"لوحة",titleB:"الأرباح",connected:"متصلة بالمتجر:",viewStore:"عرض المتجر",loginP:"أدخل كلمة سر الإدارة (ADMIN_PASS)",loginBtn:"دخول",badPass:"كلمة السر خاطئة",boxStore:"لغة وعملة المتجر",boxAdmin:"لغة وعملة اللوحة",apply:"تطبيق",setOk:"تم الحفظ",tClicks:"نقرات الشراء",tSales:"مبيعات مؤكدة",tRev:"إجمالي المبيعات",tProfit:"صافي ربحك",addT:"إضافة منتج حقيقي برابط عمولتك",namePh:"اسم المنتج",pricePh:"السعر $",oldPh:"السعر قبل الخصم $ (اختياري)",imgPh:"رابط الصورة",commPh:"نسبة عمولتك % (مثال 8)",urlPh:"رابط العمولة (رابط AliExpress بالـ Tracking الخاص بك)",imgsPh:"روابط صور إضافية — سطر لكل رابط (حتى 20)",vidPh:"رابط فيديو (mp4 أو يوتيوب) — اختياري",upImgs:"رفع صور من جهازك (حتى 20)",upVid:"رفع فيديو من جهازك (mp4 حتى 80MB)",saveBtn:"حفظ المنتج",newBtn:"جديد",cleanBtn:"تنظيف ملفات غير مستخدمة",cleaned:n=>`حُذف ${n} ملف`,saveOk:"تم الحفظ",saveBad:"بيانات ناقصة: الاسم والسعر ورابط العمولة",listT:"منتجاتك وأرباحها",clearBtn:"حذف المنتجات التجريبية",thP:"المنتج",thPr:"السعر",thC:"عمولة%",thCl:"نقرات",thS:"مبيعات",thPf:"الربح",thA:"إجراءات",sale:"+ بيع",edit:"تعديل",del:"حذف",askAmt:"مبلغ البيع $ (اتركه فارغاً لسعر المنتج)",askClear:"حذف كل المنتجات التجريبية؟",legend:"الأخضر = يعمل · الأحمر = ليس رابط صورة مباشر",uploading:"جارٍ الرفع...",upFail:"فشل الرفع",curImgs:"صور المنتج الحالية — اضغط × لحذف أي صورة:"},
 en:{titleA:"Profits",titleB:"dashboard",connected:"Connected to store:",viewStore:"View store",loginP:"Enter admin password (ADMIN_PASS)",loginBtn:"Login",badPass:"Wrong password",boxStore:"Store language & currency",boxAdmin:"Dashboard language & currency",apply:"Apply",setOk:"Saved",tClicks:"Buy clicks",tSales:"Confirmed sales",tRev:"Total revenue",tProfit:"Your net profit",addT:"Add a real product with your commission link",namePh:"Product name",pricePh:"Price $",oldPh:"Old price $ (optional)",imgPh:"Image URL",commPh:"Your commission % (e.g. 8)",urlPh:"Commission link (your tracked AliExpress URL)",imgsPh:"Extra image URLs — one per line (up to 20)",vidPh:"Video URL (mp4 or YouTube) — optional",upImgs:"Upload images from device (up to 20)",upVid:"Upload video from device (mp4 up to 80MB)",saveBtn:"Save product",newBtn:"New",cleanBtn:"Clean unused files",cleaned:n=>`${n} files removed`,saveOk:"Saved",saveBad:"Missing data: name, price and commission link",listT:"Your products & profits",clearBtn:"Delete demo products",thP:"Product",thPr:"Price",thC:"Comm.%",thCl:"Clicks",thS:"Sales",thPf:"Profit",thA:"Actions",sale:"+ Sale",edit:"Edit",del:"Delete",askAmt:"Sale amount $ (blank = product price)",askClear:"Delete all demo products?",legend:"Green = works · Red = not a direct image link",uploading:"Uploading...",upFail:"Upload failed",curImgs:"Current product images — press × to remove:"}};
+const RATES={USD:1,EUR:.92,GBP:.79,EGP:50.8,SAR:3.75,AED:3.67};
 let KEY='',ALANG='ar';
 const at=k=>AD[ALANG][k]??AD.ar[k]??k;
 function applyAdmin(){document.querySelectorAll('[data-i18n]').forEach(el=>{const v=at(el.dataset.i18n);if(typeof v==='string')el.textContent=v;});
@@ -112,9 +114,9 @@ document.getElementById('rows').innerHTML=j.rows.map(p=>`<tr class="border-t bor
 async function saveSettings(scope){const l=document.getElementById(scope==='store'?'s-lang':'a-lang').value;const c=document.getElementById(scope==='store'?'s-cur':'a-cur').value;
 await api('/api/admin/settings',{[scope]:{lang:l,currency:c}});document.getElementById('fmsg').textContent=at('setOk');load();}
 async function saveProduct(){const g=id=>document.getElementById(id).value;
-const j=await api('/api/admin/product',{id:g('f-id')||undefined,title:g('f-title'),price:g('f-price'),oldPrice:g('f-old'),image:g('f-img'),images:g('f-images'),video:g('f-video'),url:g('f-url'),commission:g('f-comm')||undefined});
+const j=await api('/api/admin/product',{id:g('f-id')||undefined,title:g('f-title'),price:g('f-price'),priceCur:g('f-cur'),oldPrice:g('f-old'),image:g('f-img'),images:g('f-images'),video:g('f-video'),url:g('f-url'),commission:g('f-comm')||undefined});
 document.getElementById('fmsg').textContent=j.ok?at('saveOk'):at('saveBad');if(j.ok)resetForm();load();}
-function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');document.getElementById('up-imgs').value='';document.getElementById('up-vid').value='';document.getElementById('prev-imgs').innerHTML='';document.getElementById('prev-vid').textContent='';document.getElementById('prev-links').innerHTML='';document.getElementById('cur-imgs').innerHTML='';}
+function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');document.getElementById('f-cur').value='USD';document.getElementById('up-imgs').value='';document.getElementById('up-vid').value='';document.getElementById('prev-imgs').innerHTML='';document.getElementById('prev-vid').textContent='';document.getElementById('prev-links').innerHTML='';document.getElementById('cur-imgs').innerHTML='';}
 // حذف صورة واحدة من المنتج أثناء التعديل
 function dropImg(u){const main=document.getElementById('f-img');if(main.value.trim()===u)main.value='';
 const ta=document.getElementById('f-images');ta.value=ta.value.split('\n').map(s=>s.trim()).filter(s=>s&&s!==u).join('\n');renderCur();previewLinks();}
@@ -139,14 +141,15 @@ if(!j.ok){document.getElementById('prev-vid').textContent=at('upFail');return;}
 document.getElementById('f-video').value=j.url;document.getElementById('prev-vid').textContent=j.url;}
 async function cleanup(){const j=await api('/api/admin/upload-cleanup',{});document.getElementById('fmsg').textContent=at('cleaned')(j.removed);}
 async function editRow(id){const j=await api('/api/admin/products');const p=(j.items||[]).find(x=>String(x.id)===String(id));if(!p)return;
-const s=(v,id)=>document.getElementById(id).value=v||'';s(p.id,'f-id');s(p.title,'f-title');s(p.price,'f-price');s(p.oldPrice,'f-old');s(p.image,'f-img');
+const s=(v,id)=>document.getElementById(id).value=v||'';s(p.id,'f-id');s(p.title,'f-title');
+const pc=p.priceCur||'USD';s(pc,'f-cur');s(Math.round(Number(p.price)*(RATES[pc]||1)*100)/100,'f-price');s(p.oldPrice?Math.round(Number(p.oldPrice)*(RATES[pc]||1)*100)/100:'','f-old');s(p.image,'f-img');
 s((p.images||[]).join('\n'),'f-images');s(p.video,'f-video');s(p.url,'f-url');s(p.commission,'f-comm');previewLinks();window.scrollTo({top:0,behavior:'smooth'});}
 async function del(id){await api('/api/admin/product/delete',{id});load();}
 async function sale(id){const a=prompt(at('askAmt'),'');if(a===null)return;await api('/api/admin/sale',{id,amount:a||undefined});load();}
 async function clearDemo(){if(confirm(at('askClear'))){await api('/api/admin/clear-demo',{});load();}}
 async function loadStore(){try{const h=await (await fetch('/api/health')).json();
-if(!window._boot)window._boot=h.boot;
-else if(h.boot&&h.boot!==window._boot){document.getElementById('upd').classList.remove('hidden');return;}
+if(!window._code)window._code=h.code;
+else if(h.code&&h.code!==window._code){document.getElementById('upd').classList.remove('hidden');return;}
 document.getElementById('sb-info').textContent=`${h.products} · ${h.subscribers} · ${h.mail} · ${h.telegram?'TG ✓':'TG —'}`;}catch{}}
 applyAdmin();loadStore();setInterval(loadStore,60000);
 </script>

@@ -312,10 +312,17 @@ app.post('/api/admin/product', (req, res) => {
       return res.status(400).json({ error: 'invalid-video' });
     }
     const all = readProducts();
+    // عملة سعر المنتج: تُدخل بأي عملة ونخزن الأساس بالدولار (لتوحيد الأرباح والتحويل)
+    const pcur = curCode(req.body?.priceCur);
+    const rate = CURR[pcur].rate;
+    const priceUSD = Number(price) / rate;
+    const oldUSD = Number(oldPrice) / rate || 0;
+    if (!(priceUSD > 0)) return res.status(400).json({ error: 'invalid-product' });
     const item = {
       id: String(id || `my-${Date.now()}`),
-      title: String(title).slice(0, 200), price: Number(price),
-      oldPrice: Number(oldPrice) || 0, image: main, images, video, url: cleanUrl,
+      title: String(title).slice(0, 200), price: Math.round(priceUSD * 100) / 100,
+      oldPrice: Math.round(oldUSD * 100) / 100, priceCur: pcur,
+      image: main, images, video, url: cleanUrl,
       commission: Math.min(100, Math.max(0, Number(commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8))),
       source: 'manual',
     };
@@ -481,7 +488,7 @@ ${related.length ? `<h2 class="font-black mt-6 mb-2 text-lg">${T.related}</h2><d
 });
 
 app.get('/api/health', (req, res) => res.json({
-  ok: true, boot: BOOT, mode: (process.env.ALI_APP_KEY ? 'aliexpress' : 'demo'),
+  ok: true, boot: BOOT, code: CODEV, mode: (process.env.ALI_APP_KEY ? 'aliexpress' : 'demo'),
   products: readProducts().length, subscribers: readJson(S_FILE, []).length,
   mail: process.env.BREVO_API_KEY ? 'brevo' : (process.env.SMTP_USER ? 'smtp' : 'off'),
   telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
@@ -489,6 +496,8 @@ app.get('/api/health', (req, res) => res.json({
 
 const PORT = Number(process.env.PORT || 3000);
 const BOOT = new Date().toISOString().slice(0, 16).replace('T', ' ');
+// نسخة الكود من git — تتغير مع كل تحديث تلقائياً ليعمل شريط التحديث
+const CODEV = (() => { try { return require('child_process').execSync('git rev-parse --short HEAD', { cwd: __dirname }).toString().trim() || 'dev'; } catch { return 'dev'; } })();
 if (require.main === module) {
   app.listen(PORT, () => console.log(`Smart-Store on http://localhost:${PORT}`));
   const everyH = Number(process.env.SYNC_EVERY_HOURS || 6);
