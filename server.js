@@ -22,7 +22,7 @@ app.get('/api/ping', (req, res) => {
 });
 app.use(express.static(path.join(__dirname, 'public'), { etag: false, maxAge: 0, setHeaders: (res, fp) => { if (fp.endsWith('.html')) res.setHeader('Cache-Control', 'no-store'); } }));
 
-const DATA = path.join(__dirname, 'data');
+const DATA = process.env.DATA_DIR || path.join(__dirname, 'data');
 const P_FILE = path.join(DATA, 'products.json');
 const S_FILE = path.join(DATA, 'subscribers.json');
 const R_FILE = path.join(DATA, 'reviews.json');
@@ -113,9 +113,20 @@ function getSettings() {
 const curCode = (c) => (CURR[c] ? c : 'USD');
 const conv = (usd, code) => Math.round(Number(usd || 0) * CURR[curCode(code)].rate * 100) / 100;
 const sym = (code) => CURR[curCode(code)].sym;
-// رفع الملفات من الجهاز إلى public/uploads
-const UP_DIR = path.join(__dirname, 'public', 'uploads');
+// رفع الملفات إلى مجلد البيانات (دائم على الاستضافات المجانية) ويُعرض عبر /uploads
+const UP_DIR = path.join(DATA, 'uploads');
 try { fs.mkdirSync(UP_DIR, { recursive: true }); } catch {}
+try {
+  const legacy = path.join(__dirname, 'public', 'uploads');
+  if (legacy !== UP_DIR && fs.existsSync(legacy)) {
+    fs.readdirSync(legacy).forEach((f) => {
+      if (f === '.gitkeep') return;
+      const a = path.join(legacy, f), c = path.join(UP_DIR, f);
+      try { if (!fs.existsSync(c)) fs.copyFileSync(a, c); } catch {}
+    });
+  }
+} catch {}
+app.use('/uploads', express.static(UP_DIR));
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UP_DIR),
   filename: (req, file, cb) => {
