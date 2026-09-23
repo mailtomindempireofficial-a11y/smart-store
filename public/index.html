@@ -32,6 +32,7 @@ select option{background:#14141C}
 </style>
 </head>
 <body>
+<div id="upd" class="hidden" style="position:fixed;top:0;right:0;left:0;z-index:99;background:linear-gradient(90deg,#8a6a1c,#D4AF37,#8a6a1c);color:#1d1404;font-weight:900;text-align:center;padding:10px">تحديث جديد متوفر — <button onclick="location.reload()" style="text-decoration:underline">اضغط هنا للتحديث</button></div>
 <noscript><div style="background:#D4AF37;color:#000;text-align:center;padding:12px;font-weight:bold">فعّل JavaScript ليعمل المتجر</div></noscript>
 <!-- شريط علوي -->
 <div class="text-center text-xs py-2" style="background:linear-gradient(90deg,#8a6a1c,#D4AF37,#8a6a1c);color:#1d1404;font-weight:700" data-i18n="topbar">شحن سريع · منتجات مختارة بعناية · عروض حصرية للمشتركين</div>
@@ -191,7 +192,10 @@ async function load(){
  }catch(err){document.getElementById('grid').innerHTML='<p>'+t('loadFail')+err.message+'</p>';}
 }
 function setCat(c){curCat=c;load();}
-async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=(j.mode==='aliexpress'?t('modeLive'):t('modeDemo'))+` · ${j.products}`;document.getElementById('ver').textContent='v-'+j.boot;updFav();}catch{}}
+async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=(j.mode==='aliexpress'?t('modeLive'):t('modeDemo'))+` · ${j.products}`;document.getElementById('ver').textContent='v-'+j.boot;
+if(!window._boot)window._boot=j.boot;else if(j.boot&&j.boot!==window._boot)document.getElementById('upd').classList.remove('hidden');
+updFav();}catch{}}
+setInterval(health,60000);
 async function boot(){try{fetch('/api/ping?v='+BUILD);}catch{}
 try{const s=await (await fetch('/api/settings-public')).json();LANG=PREF.lang||(s.lang==='en'?'en':'ar');
 if(!PREF.cur&&s.currency&&CRATES[s.currency]){PREF.cur=s.currency;}

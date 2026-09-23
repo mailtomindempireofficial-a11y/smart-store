@@ -12,6 +12,7 @@
 select.inp option{background:#14141C}:focus-visible{outline:2px solid #D4AF37;outline-offset:2px}</style>
 </head>
 <body>
+<div id="upd" class="hidden" style="position:fixed;top:0;right:0;left:0;z-index:99;background:linear-gradient(90deg,#8a6a1c,#D4AF37,#8a6a1c);color:#1d1404;font-weight:900;text-align:center;padding:10px">تحديث جديد متوفر — <button onclick="location.reload()" style="text-decoration:underline">اضغط هنا للتحديث</button></div>
 <div class="max-w-5xl mx-auto p-4">
 <h1 class="font-black text-2xl"><span data-i18n="titleA">لوحة</span> <span class="gold-text" data-i18n="titleB">الأرباح</span></h1>
 <div id="storebar" class="glass rounded-2xl p-3 mt-3 text-sm flex gap-4 flex-wrap items-center">
@@ -144,7 +145,9 @@ async function del(id){await api('/api/admin/product/delete',{id});load();}
 async function sale(id){const a=prompt(at('askAmt'),'');if(a===null)return;await api('/api/admin/sale',{id,amount:a||undefined});load();}
 async function clearDemo(){if(confirm(at('askClear'))){await api('/api/admin/clear-demo',{});load();}}
 async function loadStore(){try{const h=await (await fetch('/api/health')).json();
+if(!window._boot)window._boot=h.boot;
+else if(h.boot&&h.boot!==window._boot){document.getElementById('upd').classList.remove('hidden');return;}
 document.getElementById('sb-info').textContent=`${h.products} · ${h.subscribers} · ${h.mail} · ${h.telegram?'TG ✓':'TG —'}`;}catch{}}
-applyAdmin();loadStore();
+applyAdmin();loadStore();setInterval(loadStore,60000);
 </script>
 </body></html>
