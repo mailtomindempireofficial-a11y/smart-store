@@ -44,7 +44,8 @@ function withMeta(items) {
 }
 // ما يراه الزوار فقط — بدون بيانات العمولة والأرباح (سرية)
 function publicProduct(p) {
-  return { id: p.id, title: p.title, price: p.price, oldPrice: p.oldPrice, image: p.image, category: p.category, rating: p.rating, source: p.source };
+  const imgs = (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])).slice(0, 8);
+  return { id: p.id, title: p.title, price: p.price, oldPrice: p.oldPrice, image: imgs[0] || '', images: imgs, video: p.video || '', category: p.category, rating: p.rating, source: p.source };
 }
 const adminOk = (req) => String(req.query.key || req.body?.key || '') === String(process.env.ADMIN_PASS || 'admin123');
 const commOf = (p) => Number(p.commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8);
@@ -139,6 +140,12 @@ app.get('/api/admin/stats', (req, res) => {
   res.json({ ok: true, ...stats() });
 });
 
+// بيانات المنتجات الكاملة للتعديل (للإدارة فقط)
+app.get('/api/admin/products', (req, res) => {
+  if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  res.json({ ok: true, items: readJson(P_FILE, []) });
+});
+
 // إضافة / تعديل منتج حقيقي برابط عمولتك ونسبة ربحك
 app.post('/api/admin/product', (req, res) => {
   try {
@@ -147,11 +154,21 @@ app.post('/api/admin/product', (req, res) => {
     if (!String(title || '').trim() || !(Number(price) > 0) || !/^https?:\/\//i.test(String(url || ''))) {
       return res.status(400).json({ error: 'invalid-product' });
     }
+    // صور متعددة: سطر لكل رابط (بحد أقصى 8) + الصورة الرئيسية أولاً
+    let images = [];
+    if (Array.isArray(req.body?.images)) images = req.body.images;
+    else if (typeof req.body?.images === 'string') images = req.body.images.split('\n');
+    images = images.map((s) => String(s).trim()).filter((s) => /^https?:\/\//i.test(s)).slice(0, 8);
+    let main = String(image || '').trim();
+    if (main && !images.includes(main)) images.unshift(main);
+    if (!main && images.length) main = images[0];
+    // فيديو: رابط mp4 مباشر أو يوتيوب
+    const video = String(req.body?.video || '').trim().slice(0, 500);
     const all = readJson(P_FILE, []);
     const item = {
       id: String(id || `my-${Date.now()}`),
       title: String(title).slice(0, 200), price: Number(price),
-      oldPrice: Number(oldPrice) || 0, image: String(image || ''), url: String(url),
+      oldPrice: Number(oldPrice) || 0, image: main, images, video, url: String(url),
       commission: Math.min(100, Math.max(0, Number(commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8))),
       source: 'manual',
     };
@@ -259,6 +276,13 @@ app.get('/p/:id', (req, res) => {
     }
     const share = encodeURIComponent(`${p.title} — $${p.price}`);
     const shareUrl = encodeURIComponent(url);
+    // معرض الصور + الفيديو
+    const gallery = (Array.isArray(p.images) && p.images.length ? p.images : [p.image]).filter(Boolean).slice(0, 8);
+    let videoHtml = '';
+    const vid = String(p.video || '');
+    const yt = vid.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/);
+    if (yt) videoHtml = `<div class="mt-4"><div class="font-black mb-2">شاهد المنتج بالفيديو</div><iframe class="w-full h-64 rounded-2xl" src="https://www.youtube.com/embed/${yt[1]}" frameborder="0" allowfullscreen loading="lazy"></iframe></div>`;
+    else if (/^https?:\/\//i.test(vid)) videoHtml = `<div class="mt-4"><div class="font-black mb-2">شاهد المنتج بالفيديو</div><video class="w-full rounded-2xl bg-black" controls preload="none" src="${escHtml(vid)}"></video></div>`;
     res.type('text/html').send(`<!doctype html><html lang="ar" dir="rtl" style="background:#0A0A0F"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${escHtml(p.title)} — $${escHtml(p.price)} | متجري الذكي</title>
@@ -273,7 +297,9 @@ app.get('/p/:id', (req, res) => {
 <body><main class="max-w-3xl mx-auto p-4">
 <a href="/" class="text-yellow-200/80">← عودة للمتجر</a>
 <div class="glass rounded-3xl p-6 mt-3">
-<img src="${escHtml(p.image)}" class="h-64 w-full object-contain mx-auto mb-4 rounded-2xl bg-white/95 p-3"/>
+<div class="mb-4"><img id="gmain" src="${escHtml(gallery[0] || '')}" class="h-64 w-full object-contain mx-auto rounded-2xl bg-white/95 p-3"/>
+${gallery.length > 1 ? `<div class="flex gap-2 mt-2 justify-center flex-wrap">` + gallery.map((g, i) => `<img src="${escHtml(g)}" onclick="document.getElementById('gmain').src=this.src" onmouseover="document.getElementById('gmain').src=this.src" class="h-16 w-16 object-contain rounded-xl bg-white/95 p-1 cursor-pointer border ${i === 0 ? 'border-yellow-500' : 'border-white/20'}"/>`).join('') + `</div>` : ''}</div>
+${videoHtml}
 <div class="font-amiri text-2xl mb-1">${escHtml(p.title)}</div>
 <div class="text-sm opacity-60 mb-2">${escHtml(p.category)} · <span class="text-amber-400">${stars(p.rating.avg)}</span> ${p.rating.avg || ''} (${p.rating.count})</div>
 <div class="gold-text font-black text-3xl mb-4">$${escHtml(p.price)}</div>

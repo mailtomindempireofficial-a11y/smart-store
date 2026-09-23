@@ -33,8 +33,12 @@
 <input id="f-img" class="inp md:col-span-2" placeholder="رابط الصورة"/>
 <input id="f-comm" type="number" class="inp" placeholder="نسبة عمولتك % (مثال 8)"/>
 <input id="f-url" class="inp md:col-span-3" placeholder="رابط العمولة (رابط AliExpress بالـ Tracking الخاص بك)"/>
+<textarea id="f-images" class="inp md:col-span-2" rows="2" placeholder="روابط صور إضافية — سطر لكل صورة (حتى 8)"></textarea>
+<input id="f-video" class="inp" placeholder="رابط فيديو (mp4 أو يوتيوب) — اختياري"/>
+<input id="f-id" type="hidden"/>
 </div>
 <button onclick="saveProduct()" class="gold-btn px-6 py-2 rounded-xl mt-3">حفظ المنتج</button>
+<button onclick="resetForm()" class="text-xs border border-white/20 px-4 py-2 rounded-xl mt-3">جديد</button>
 <span id="fmsg" class="text-sm mr-2"></span>
 </div>
 <div class="glass rounded-2xl p-5 mt-4">
@@ -59,11 +63,16 @@ document.getElementById('rows').innerHTML=j.rows.map(p=>`<tr class="border-t bor
 <td class="p-2">${p.title.slice(0,40)}</td><td class="p-2 text-center">$${p.price}</td><td class="p-2 text-center">${p.commission}%</td>
 <td class="p-2 text-center">${p.clicks}</td><td class="p-2 text-center">${p.sales}</td><td class="p-2 text-center gold-text font-black">$${p.profit}</td>
 <td class="p-2 text-center whitespace-nowrap"><button onclick="sale('${p.id}')" class="text-xs bg-emerald-600 px-2 py-1 rounded">+ بيع</button>
+<button onclick="editRow('${p.id}')" class="text-xs bg-blue-700 px-2 py-1 rounded">تعديل</button>
 <button onclick="del('${p.id}')" class="text-xs bg-red-700 px-2 py-1 rounded">حذف</button></td></tr>`).join('');
 }catch(e){}}
 async function saveProduct(){const g=id=>document.getElementById(id).value;
-const j=await api('/api/admin/product',{title:g('f-title'),price:g('f-price'),oldPrice:g('f-old'),image:g('f-img'),url:g('f-url'),commission:g('f-comm')||undefined});
-document.getElementById('fmsg').textContent=j.ok?'تم الحفظ':'بيانات ناقصة: الاسم والسعر ورابط العمولة';load();}
+const j=await api('/api/admin/product',{id:g('f-id')||undefined,title:g('f-title'),price:g('f-price'),oldPrice:g('f-old'),image:g('f-img'),images:g('f-images'),video:g('f-video'),url:g('f-url'),commission:g('f-comm')||undefined});
+document.getElementById('fmsg').textContent=j.ok?'تم الحفظ':'بيانات ناقصة: الاسم والسعر ورابط العمولة';if(j.ok)resetForm();load();}
+function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');}
+async function editRow(id){const j=await api('/api/admin/products');const p=(j.items||[]).find(x=>String(x.id)===String(id));if(!p)return;
+const s=(v,id)=>document.getElementById(id).value=v||'';s(p.id,'f-id');s(p.title,'f-title');s(p.price,'f-price');s(p.oldPrice,'f-old');s(p.image,'f-img');
+s((p.images||[]).join('\n'),'f-images');s(p.video,'f-video');s(p.url,'f-url');s(p.commission,'f-comm');window.scrollTo({top:0,behavior:'smooth'});}
 async function del(id){if(confirm('حذف؟')){await api('/api/admin/product/delete',{id});load();}}
 async function sale(id){const a=prompt('مبلغ البيع $ (اتركه فارغاً لسعر المنتج)','');if(a===null)return;await api('/api/admin/sale',{id,amount:a||undefined});load();}
 async function clearDemo(){if(confirm('حذف كل المنتجات التجريبية؟')){await api('/api/admin/clear-demo',{});load();}}
