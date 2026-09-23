@@ -20,7 +20,15 @@ const C_FILE = path.join(DATA, 'clicks.json');
 const SA_FILE = path.join(DATA, 'sales.json');
 try { fs.mkdirSync(DATA, { recursive: true }); } catch {}
 function readJson(f, fb) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return fb; } }
-function writeJson(f, v) { fs.writeFileSync(f, JSON.stringify(v, null, 2)); }
+function writeJson(f, v) { const t = f + '.tmp'; fs.writeFileSync(t, JSON.stringify(v, null, 2)); fs.renameSync(t, f); }
+// حماية: لا تمسح ملفاً موجوداً فيه بيانات لو فشلت القراءة
+function readGuarded(f) {
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  catch {
+    try { if (fs.existsSync(f) && fs.statSync(f).size > 10) throw new Error('data-unavailable'); } catch (e) { if (e.message === 'data-unavailable') throw e; }
+    return null;
+  }
+}
 const emailOk = (e) => typeof e === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 const storeUrl = () => (process.env.STORE_URL || 'http://localhost:3000').replace(/\/$/, '');
 // تصنيف تلقائي من عنوان المنتج (للفلاتر وروابط SEO)
@@ -182,17 +190,19 @@ app.post('/api/admin/product', (req, res) => {
 app.post('/api/admin/product/delete', (req, res) => {
   try {
     if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
-    writeJson(P_FILE, readJson(P_FILE, []).filter((x) => String(x.id) !== String(req.body?.id)));
+    const cur = readGuarded(P_FILE); if (cur === null) return res.status(500).json({ error: 'no-data' });
+    writeJson(P_FILE, cur.filter((x) => String(x.id) !== String(req.body?.id)));
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'delete-failed' }); }
+  } catch (e) { res.status(500).json({ error: e.message === 'data-unavailable' ? 'data-unavailable' : 'delete-failed' }); }
 });
 
 app.post('/api/admin/clear-demo', (req, res) => {
   try {
     if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
-    writeJson(P_FILE, readJson(P_FILE, []).filter((x) => x.source === 'manual'));
+    const cur = readGuarded(P_FILE); if (cur === null) return res.status(500).json({ error: 'no-data' });
+    writeJson(P_FILE, cur.filter((x) => x.source === 'manual'));
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: 'clear-failed' }); }
+  } catch (e) { res.status(500).json({ error: e.message === 'data-unavailable' ? 'data-unavailable' : 'clear-failed' }); }
 });
 
 // تسجيل عملية بيع مؤكدة (تراها في تقارير AliExpress) لحساب الربح الحقيقي
