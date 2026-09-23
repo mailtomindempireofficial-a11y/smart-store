@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: smart-store
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: ALI_KEYWORDS
+        value: wireless earbuds, smart watch, led lamp
+      - key: ALI_PAGE_SIZE
+        value: 20
+      - key: SYNC_EVERY_HOURS
+        value: 6

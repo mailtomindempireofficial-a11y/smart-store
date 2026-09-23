@@ -1,0 +1,18 @@
+{
+  "name": "smart-store",
+  "version": "1.0.0",
+  "description": "متجر ذاتي: سحب تلقائي من AliExpress Affiliate + تسويق ايميل مجاني",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.14",
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

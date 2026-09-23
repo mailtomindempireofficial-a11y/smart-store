@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>متجري الذكي — يبيع ويسوق لنفسه</title>
+<meta name="description" content="متجر ذاتي يسحب المنتجات تلقائيا من AliExpress Affiliate ويسوق عبر الايميل مجانا."/>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:system-ui}</style>
+</head>
+<body class="bg-slate-50">
+<header class="bg-slate-900 text-white p-4 flex gap-3 items-center">
+<h1 class="font-bold text-lg">متجري الذكي</h1>
+<span id="mode" class="text-xs bg-slate-700 px-2 py-1 rounded">...</span>
+<input id="q" placeholder="ابحث..." class="mr-auto text-black px-3 py-1 rounded w-48"/>
+<button onclick="sync()" class="bg-emerald-500 px-3 py-1 rounded">مزامنة الآن</button>
+</header>
+<main class="p-4 max-w-6xl mx-auto">
+<div class="bg-white p-4 rounded-xl shadow mb-4 flex gap-2 flex-wrap items-center">
+<b>التسويق المجاني:</b>
+<input id="email" placeholder="بريدك للعروض" class="border px-3 py-1 rounded"/>
+<button onclick="sub()" class="bg-blue-600 text-white px-3 py-1 rounded">اشترك</button>
+<span id="msg" class="text-sm text-slate-600"></span>
+</div>
+<div id="grid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+</main>
+<script>
+async function load(q=''){
+ const r=await fetch('/api/products?q='+encodeURIComponent(q)); const j=await r.json();
+ document.getElementById('grid').innerHTML=j.items.map(p=>`
+ <div class="bg-white rounded-xl shadow p-3 flex flex-col">
+ <img src="${p.image||''}" class="h-36 object-contain mb-2" loading="lazy"/>
+ <div class="font-bold text-sm h-10 overflow-hidden">${p.title||''}</div>
+ <div class="text-emerald-600 font-bold">$${p.price??''}</div>
+ <a href="${p.url||'#'}" target="_blank" class="mt-2 text-center bg-orange-500 text-white rounded py-1">اشترِ الآن</a>
+ </div>`).join('')||'<p>لا منتجات بعد — اضغط مزامنة الآن</p>';
+}
+async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=j.mode==='aliexpress'?'وضع AliExpress حي':'وضع تجريبي مجاني';}catch{}}
+async function sync(){document.getElementById('msg').textContent='جارٍ المزامنة...';const r=await fetch('/api/sync',{method:'POST'});const j=await r.json();document.getElementById('msg').textContent=j.ok?`تم: +${j.new} جديد (${j.mode})`:'فشل';load();}
+async function sub(){const email=document.getElementById('email').value;const r=await fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const j=await r.json();document.getElementById('msg').textContent=j.ok?'تم الاشتراك':'بريد غير صالح';}
+document.getElementById('q').oninput=e=>load(e.target.value);
+health();load();
+</script>
+</body></html>
