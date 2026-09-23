@@ -91,7 +91,7 @@ function withMeta(items) {
 function publicProduct(p) {
   const imgs = (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])).slice(0, 20);
   const st = getSettings().store;
-  return { id: p.id, title: p.title, price: p.price, oldPrice: p.oldPrice, image: imgs[0] || '', images: imgs, video: p.video || '', category: p.category, rating: p.rating, source: p.source,
+  return { id: p.id, title: p.title, price: p.price, oldPrice: p.oldPrice, image: imgs[0] || '', images: imgs, video: p.video || '', category: p.category, rating: p.rating, source: p.source, desc: p.desc || '',
     priceDisplay: conv(p.price, st.currency), oldDisplay: p.oldPrice ? conv(p.oldPrice, st.currency) : 0, currency: curCode(st.currency), symbol: sym(st.currency) };
 }
 const adminOk = (req) => String(req.query.key || req.body?.key || '') === getAdminPass();
@@ -371,6 +371,7 @@ app.post('/api/admin/product', (req, res) => {
       id: String(id || `my-${Date.now()}`),
       title: String(title).slice(0, 200), price: Math.round(priceUSD * 100) / 100,
       oldPrice: Math.round(oldUSD * 100) / 100, priceCur: pcur,
+      desc: String(req.body?.desc || '').slice(0, 2000),
       image: main, images, video, url: cleanUrl,
       commission: Math.min(100, Math.max(0, Number(commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8))),
       source: 'manual',
@@ -504,7 +505,7 @@ app.get('/p/:id', (req, res) => {
     const stars = (avg) => '★'.repeat(Math.round(avg)) + '☆'.repeat(Math.max(0, 5 - Math.round(avg)));
     const jsonld = {
       '@context': 'https://schema.org', '@type': 'Product',
-      name: p.title, image: [p.image], description: p.title, sku: String(p.id),
+      name: p.title, image: [p.image], description: p.desc || p.title, sku: String(p.id),
       offers: {
         '@type': 'Offer', url: p.url, priceCurrency: 'USD', price: p.price,
         availability: 'https://schema.org/InStock',
@@ -525,7 +526,7 @@ app.get('/p/:id', (req, res) => {
     res.type('text/html').send(`<!doctype html><html lang="${lang}" dir="${dir}" style="background:#0A0A0F"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${escHtml(p.title)} — ${escHtml(symb)}${escHtml(pd)} | متجري الذكي</title>
-<meta name="description" content="${escHtml(p.title)} بسعر ${escHtml(symb)}${escHtml(pd)} — ${escHtml(p.category)}"/>
+<meta name="description" content="${escHtml(p.desc || p.title)} — ${escHtml(p.category)}"/>
 <link rel="canonical" href="${escHtml(url)}"/>
 <meta property="og:title" content="${escHtml(p.title)}"/><meta property="og:image" content="${escHtml(p.image)}"/>
 <meta property="og:url" content="${escHtml(url)}"/><meta property="og:type" content="product"/>
@@ -541,6 +542,7 @@ ${gallery.length > 1 ? `<div class="flex gap-2 mt-2 justify-center flex-wrap">` 
 ${videoHtml}
 <div class="font-amiri text-2xl mb-1">${escHtml(p.title)}</div>
 <div class="text-sm opacity-60 mb-2">${escHtml(p.category)} · <span class="text-amber-400">${stars(p.rating.avg)}</span> ${p.rating.avg || ''} (${p.rating.count})</div>
+${p.desc ? `<p class="text-sm opacity-85 leading-8 mb-3">${escHtml(p.desc)}</p>` : ''}
 <div class="gold-text font-black text-3xl mb-4">${escHtml(symb)}${escHtml(pd)}</div>
 <a href="/go/${encodeURIComponent(p.id)}" target="_blank" rel="nofollow sponsored" class="gold-btn block text-center rounded-full py-3 text-lg">${T.buy}</a>
 <div class="flex gap-2 mt-4 text-sm flex-wrap">
