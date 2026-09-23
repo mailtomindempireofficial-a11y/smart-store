@@ -28,6 +28,7 @@ const S_FILE = path.join(DATA, 'subscribers.json');
 const R_FILE = path.join(DATA, 'reviews.json');
 const C_FILE = path.join(DATA, 'clicks.json');
 const SA_FILE = path.join(DATA, 'sales.json');
+const AR_FILE = path.join(DATA, 'articles.json');
 try { fs.mkdirSync(DATA, { recursive: true }); } catch {}
 function readJson(f, fb) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return fb; } }
 function writeJson(f, v) { const t = f + '.tmp'; fs.writeFileSync(t, JSON.stringify(v, null, 2)); fs.renameSync(t, f); }
@@ -93,7 +94,14 @@ function publicProduct(p) {
   return { id: p.id, title: p.title, price: p.price, oldPrice: p.oldPrice, image: imgs[0] || '', images: imgs, video: p.video || '', category: p.category, rating: p.rating, source: p.source,
     priceDisplay: conv(p.price, st.currency), oldDisplay: p.oldPrice ? conv(p.oldPrice, st.currency) : 0, currency: curCode(st.currency), symbol: sym(st.currency) };
 }
-const adminOk = (req) => String(req.query.key || req.body?.key || '') === String(process.env.ADMIN_PASS || 'admin123');
+const adminOk = (req) => String(req.query.key || req.body?.key || '') === getAdminPass();
+function getAdminPass() {
+  try {
+    const s = JSON.parse(fs.readFileSync(SET_FILE, 'utf8'));
+    if (s.adminPass) return String(s.adminPass);
+  } catch {}
+  return String(process.env.ADMIN_PASS || 'admin123');
+}
 const commOf = (p) => Number(p.commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8);
 // اللغات والعملات: صندوق للمتجر + صندوق للوحة (مستقلان)
 const SET_FILE = path.join(DATA, 'settings.json');
@@ -104,10 +112,12 @@ const CURR = {
 function getSettings() {
   try {
     const s = JSON.parse(fs.readFileSync(SET_FILE, 'utf8'));
-    return {
+    const out = {
       store: { lang: s.store?.lang === 'en' ? 'en' : 'ar', currency: CURR[s.store?.currency] ? s.store.currency : 'USD' },
       admin: { lang: s.admin?.lang === 'en' ? 'en' : 'ar', currency: CURR[s.admin?.currency] ? s.admin.currency : 'USD' },
     };
+    if (s.adminPass) out.adminPass = String(s.adminPass);
+    return out;
   } catch { return { store: { lang: 'ar', currency: 'USD' }, admin: { lang: 'ar', currency: 'USD' } }; }
 }
 const curCode = (c) => (CURR[c] ? c : 'USD');
@@ -251,8 +261,36 @@ app.post('/api/admin/settings', (req, res) => {
       if (CURR[v.currency]) cur[scope].currency = v.currency;
     }
     writeJson(SET_FILE, cur);
-    res.json({ ok: true, ...cur });
+    res.json({ ok: true, store: cur.store, admin: cur.admin });
   } catch (e) { res.status(500).json({ error: 'save-failed' }); }
+});
+
+// تغيير كلمة سر اللوحة من داخل اللوحة
+app.post('/api/admin/passwd', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    const np = String(req.body?.new || '');
+    if (np.length < 6) return res.status(400).json({ error: 'too-short' });
+    const cur = getSettings();
+    cur.adminPass = np;
+    writeJson(SET_FILE, cur);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'save-failed' }); }
+});
+
+// نسخة احتياطية كاملة بضغطة (منتجات+مشتركين+تقييمات+مبيعات+إعدادات+مقالات)
+app.get('/api/admin/backup', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    res.set('Content-Disposition', `attachment; filename="store-backup-${new Date().toISOString().slice(0, 10)}.json"`);
+    res.json({
+      at: new Date().toISOString(),
+      products: readProducts(), subscribers: readJson(S_FILE, []),
+      reviews: readJson(R_FILE, []), clicks: readJson(C_FILE, {}),
+      sales: readJson(SA_FILE, []), settings: getSettings(),
+      articles: readJson(AR_FILE, []),
+    });
+  } catch (e) { res.status(500).json({ error: 'backup-failed' }); }
 });
 
 // بيانات المنتجات الكاملة للتعديل (للإدارة فقط)
@@ -413,7 +451,7 @@ app.post('/api/sync', async (req, res) => {
 
 app.get('/sitemap.xml', (req, res) => {
   try {
-    res.type('text/xml').send(buildSitemap(storeUrl(), readProducts()));
+    res.type('text/xml').send(buildSitemap(storeUrl(), readProducts(), readJson(AR_FILE, [])));
   } catch { res.status(500).end(); }
 });
 
@@ -496,6 +534,77 @@ ${related.length ? `<h2 class="font-black mt-6 mb-2 text-lg">${T.related}</h2><d
 </main><script>async function sendRev(){const r=await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:${JSON.stringify(p.id)},name:document.getElementById('rn').value,rating:document.getElementById('rr').value,text:document.getElementById('rt').value})});if(r.ok)location.reload();else alert('اكتب تقييماً صحيحاً');}</script>
 </body></html>`);
   } catch (e) { res.status(500).type('text/html').send('خطأ داخلي'); }
+});
+
+// المدونة: مقالات SEO تجلب زواراً مجانيين من Google
+const blogPage = (lang, dir, title, desc, body, jsonld) => `<!doctype html><html lang="${lang}" dir="${dir}" style="background:#0A0A0F"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/><title>${title} | متجري الذكي</title>
+<meta name="description" content="${desc}"/>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@700&family=Cairo:wght@400;700;900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+${jsonld ? `<script type="application/ld+json">${jsonld}</script>` : ''}
+<style>body{font-family:'Cairo',system-ui;background:#0A0A0F;color:#F5F1E6}.font-amiri{font-family:'Amiri',serif}.gold-text{background:linear-gradient(120deg,#8a6a1c,#D4AF37 35%,#F7E7B0 50%,#D4AF37 65%,#8a6a1c);-webkit-background-clip:text;background-clip:text;color:transparent}.glass{background:rgba(255,255,255,.045);border:1px solid rgba(212,175,55,.22)}.gold-btn{background:linear-gradient(135deg,#b8912b,#f3dfa0 50%,#b8912b);color:#241a05;font-weight:900}.article-body p{margin:.8em 0;line-height:2}.article-body h2{font-weight:900;margin:1.2em 0 .5em;font-size:1.25rem}.article-body a{color:#F3DFA0;text-decoration:underline}</style></head>
+<body><main class="max-w-3xl mx-auto p-4"><a href="/" class="text-yellow-200/80">← متجري الذكي</a>${body}</main></body></html>`;
+
+app.get('/blog', (req, res) => {
+  try {
+    const L = getSettings().store;
+    const arts = readJson(AR_FILE, []).slice().reverse();
+    const body = `<h1 class="font-amiri text-4xl mt-4 mb-1">مدونة <span class="gold-text">النخبة</span></h1>
+    <p class="opacity-60 text-sm mb-6">أدلة ونصائح التسوق الذكي — تُحدَّث باستمرار</p>` +
+    (arts.map((a) => `<a href="/blog/${encodeURIComponent(a.slug)}" class="glass rounded-2xl p-5 mb-3 block">
+      <div class="font-black text-lg">${escHtml(a.title)}</div>
+      <div class="text-sm opacity-60 mt-1">${escHtml(a.excerpt || '')}</div></a>`).join('') || '<p class="opacity-60">قريباً: أول المقالات</p>');
+    res.type('text/html').send(blogPage(L.lang, L.lang === 'en' ? 'ltr' : 'rtl', 'المدونة', 'مقالات وأدلة التسوق الذكي', body));
+  } catch (e) { res.status(500).type('text/html').send('خطأ داخلي'); }
+});
+
+app.get('/blog/:slug', (req, res) => {
+  try {
+    const L = getSettings().store;
+    const a = readJson(AR_FILE, []).find((x) => String(x.slug) === String(req.params.slug));
+    if (!a) return res.status(404).type('text/html').send('<h1>المقال غير موجود</h1><a href="/blog">المدونة</a>');
+    const url = `${storeUrl()}/blog/${encodeURIComponent(a.slug)}`;
+    const rel = withMeta(readProducts()).slice(0, 4);
+    const jsonld = JSON.stringify({ '@context': 'https://schema.org', '@type': 'Article', headline: a.title, description: a.excerpt || '', datePublished: a.at, mainEntityOfPage: url });
+    const body = `<article class="glass rounded-3xl p-6 mt-4"><h1 class="font-amiri text-3xl mb-2">${escHtml(a.title)}</h1>
+    <div class="text-xs opacity-50 mb-4">${escHtml((a.at || '').slice(0, 10))}</div>
+    <div class="article-body">${a.body || ''}</div></article>
+    ${rel.length ? `<h2 class="font-black mt-6 mb-2">تسوق منتجاتنا</h2><div class="grid grid-cols-2 md:grid-cols-4 gap-3">` + rel.map((r) => `<a href="/p/${encodeURIComponent(r.id)}" class="glass rounded-2xl p-2"><img src="${escHtml(r.image)}" class="h-24 w-full object-contain mx-auto rounded-xl bg-white/95 p-1"/><div class="text-xs font-bold h-8 overflow-hidden mt-1">${escHtml(r.title)}</div></a>`).join('') + `</div>` : ''}`;
+    res.type('text/html').send(blogPage(L.lang, L.lang === 'en' ? 'ltr' : 'rtl', a.title, a.excerpt || a.title, body, jsonld));
+  } catch (e) { res.status(500).type('text/html').send('خطأ داخلي'); }
+});
+
+// إدارة المقالات
+app.get('/api/admin/articles', (req, res) => {
+  if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  res.json({ ok: true, items: readJson(AR_FILE, []) });
+});
+app.post('/api/admin/article', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    const { id, slug, title, excerpt, body } = req.body || {};
+    if (!String(title || '').trim() || !String(body || '').trim()) return res.status(400).json({ error: 'invalid-article' });
+    const all = readJson(AR_FILE, []);
+    const item = {
+      id: String(id || `ar-${Date.now()}`),
+      slug: String(slug || '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || `a-${Date.now()}`,
+      title: String(title).slice(0, 200), excerpt: String(excerpt || '').slice(0, 300),
+      body: String(body).slice(0, 20000), at: new Date().toISOString(),
+    };
+    if (all.some((x) => x.slug === item.slug && x.id !== item.id)) return res.status(400).json({ error: 'slug-taken' });
+    const i = all.findIndex((x) => String(x.id) === item.id);
+    if (i >= 0) { item.at = all[i].at; all[i] = item; } else all.push(item);
+    writeJson(AR_FILE, all.slice(-200));
+    res.json({ ok: true, id: item.id });
+  } catch (e) { res.status(500).json({ error: 'save-failed' }); }
+});
+app.post('/api/admin/article/delete', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    writeJson(AR_FILE, readJson(AR_FILE, []).filter((x) => String(x.id) !== String(req.body?.id)));
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'delete-failed' }); }
 });
 
 app.get('/api/health', (req, res) => res.json({
