@@ -34,11 +34,12 @@
 <input id="f-title" class="inp" placeholder="اسم المنتج"/>
 <input id="f-price" type="number" class="inp" placeholder="السعر $"/>
 <input id="f-old" type="number" class="inp" placeholder="السعر قبل الخصم $ (اختياري)"/>
-<input id="f-img" class="inp md:col-span-2" placeholder="رابط الصورة"/>
+<input id="f-img" class="inp md:col-span-2" placeholder="رابط الصورة" oninput="previewLinks()"/>
 <input id="f-comm" type="number" class="inp" placeholder="نسبة عمولتك % (مثال 8)"/>
 <input id="f-url" class="inp md:col-span-3" placeholder="رابط العمولة (رابط AliExpress بالـ Tracking الخاص بك)"/>
-<textarea id="f-images" class="inp md:col-span-2" rows="2" placeholder="روابط صور إضافية — سطر لكل صورة (حتى 8)"></textarea>
+<textarea id="f-images" class="inp md:col-span-2" rows="2" placeholder="روابط صور إضافية — سطر لكل رابط (حتى 8)" oninput="previewLinks()"></textarea>
 <input id="f-video" class="inp" placeholder="رابط فيديو (mp4 أو يوتيوب) — اختياري"/>
+<div id="prev-links" class="md:col-span-3 flex gap-1 flex-wrap text-xs"></div>
 <input id="f-id" type="hidden"/>
 </div>
 <div class="grid md:grid-cols-2 gap-2 mt-2">
@@ -81,7 +82,12 @@ document.getElementById('rows').innerHTML=j.rows.map(p=>`<tr class="border-t bor
 async function saveProduct(){const g=id=>document.getElementById(id).value;
 const j=await api('/api/admin/product',{id:g('f-id')||undefined,title:g('f-title'),price:g('f-price'),oldPrice:g('f-old'),image:g('f-img'),images:g('f-images'),video:g('f-video'),url:g('f-url'),commission:g('f-comm')||undefined});
 document.getElementById('fmsg').textContent=j.ok?'تم الحفظ':'بيانات ناقصة: الاسم والسعر ورابط العمولة';if(j.ok)resetForm();load();}
-function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');document.getElementById('up-imgs').value='';document.getElementById('up-vid').value='';document.getElementById('prev-imgs').innerHTML='';document.getElementById('prev-vid').textContent='';}
+function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');document.getElementById('up-imgs').value='';document.getElementById('up-vid').value='';document.getElementById('prev-imgs').innerHTML='';document.getElementById('prev-vid').textContent='';document.getElementById('prev-links').innerHTML='';}
+// معاينة حية لروابط الصور الملصقة — تكشف الرابط الذي ليس صورة مباشرة
+function previewLinks(){const box=document.getElementById('prev-links');
+const urls=[document.getElementById('f-img').value.trim(),...document.getElementById('f-images').value.split('\n').map(s=>s.trim())].filter(u=>/^https?:\/\//i.test(u)).slice(0,8);
+box.innerHTML=urls.map(u=>`<span class="relative"><img src="${u}" class="h-14 w-14 object-cover rounded border border-white/20" onload="this.style.borderColor='#22c55e'" onerror="this.style.borderColor='#ef4444';this.title='الرابط لا يعمل كصورة مباشرة'"/></span>`).join('')
++(urls.length?'<span class="opacity-60 w-full">الأخضر = يعمل · الأحمر = ليس رابط صورة مباشر (انسخ رابط الصورة نفسها لا صفحة المنتج)</span>':'');}
 async function uploadImages(){const inp=document.getElementById('up-imgs');if(!inp.files.length)return;
 document.getElementById('prev-imgs').innerHTML='جارٍ الرفع...';
 const fd=new FormData();for(const f of inp.files)fd.append('images',f);
@@ -100,7 +106,7 @@ document.getElementById('sb-info').textContent=`${h.products} منتج · ${h.su
 loadStore();
 async function editRow(id){const j=await api('/api/admin/products');const p=(j.items||[]).find(x=>String(x.id)===String(id));if(!p)return;
 const s=(v,id)=>document.getElementById(id).value=v||'';s(p.id,'f-id');s(p.title,'f-title');s(p.price,'f-price');s(p.oldPrice,'f-old');s(p.image,'f-img');
-s((p.images||[]).join('\n'),'f-images');s(p.video,'f-video');s(p.url,'f-url');s(p.commission,'f-comm');window.scrollTo({top:0,behavior:'smooth'});}
+s((p.images||[]).join('\n'),'f-images');s(p.video,'f-video');s(p.url,'f-url');s(p.commission,'f-comm');previewLinks();window.scrollTo({top:0,behavior:'smooth'});}
 async function del(id){if(confirm('حذف؟')){await api('/api/admin/product/delete',{id});load();}}
 async function sale(id){const a=prompt('مبلغ البيع $ (اتركه فارغاً لسعر المنتج)','');if(a===null)return;await api('/api/admin/sale',{id,amount:a||undefined});load();}
 async function clearDemo(){if(confirm('حذف كل المنتجات التجريبية؟')){await api('/api/admin/clear-demo',{});load();}}

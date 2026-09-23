@@ -23,12 +23,38 @@ try { fs.mkdirSync(DATA, { recursive: true }); } catch {}
 function readJson(f, fb) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return fb; } }
 function writeJson(f, v) { const t = f + '.tmp'; fs.writeFileSync(t, JSON.stringify(v, null, 2)); fs.renameSync(t, f); }
 // حماية: لا تمسح ملفاً موجوداً فيه بيانات لو فشلت القراءة
+function readProducts() { try { const d = readGuarded(P_FILE); return Array.isArray(d) ? d : []; } catch { return []; } }
 function readGuarded(f) {
-  try { return JSON.parse(fs.readFileSync(f, 'utf8')); }
+  try {
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    if (f === P_FILE && Array.isArray(d) && !d.length) {
+      const b = latestBackup();
+      if (b) { fs.copyFileSync(b, f); console.log(`[restore] products from ${path.basename(b)}`); return JSON.parse(fs.readFileSync(f, 'utf8')); }
+    }
+    return d;
+  }
   catch {
-    try { if (fs.existsSync(f) && fs.statSync(f).size > 10) throw new Error('data-unavailable'); } catch (e) { if (e.message === 'data-unavailable') throw e; }
+    try {
+      if (fs.existsSync(f) && fs.statSync(f).size > 10) throw new Error('data-unavailable');
+      if (f === P_FILE) { const b = latestBackup(); if (b) { fs.copyFileSync(b, f); return JSON.parse(fs.readFileSync(f, 'utf8')); } }
+    } catch (e) { if (e.message === 'data-unavailable') throw e; }
     return null;
   }
+}
+// نسخ احتياطية دوارة لمنتجات المتجر (آخر 3 نسخ)
+function latestBackup() {
+  for (let i = 1; i <= 3; i++) { const b = path.join(DATA, `products.bak${i}.json`); try { if (fs.existsSync(b)) return b; } catch {} }
+  return null;
+}
+function backupProducts(items) {
+  try {
+    if (!Array.isArray(items) || !items.length) return;
+    for (let i = 3; i > 1; i--) {
+      const a = path.join(DATA, `products.bak${i - 1}.json`), c = path.join(DATA, `products.bak${i}.json`);
+      if (fs.existsSync(a)) fs.copyFileSync(a, c);
+    }
+    fs.writeFileSync(path.join(DATA, 'products.bak1.json'), JSON.stringify(items));
+  } catch (e) { console.error('backup-fail', e.message); }
 }
 const emailOk = (e) => typeof e === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 const storeUrl = () => (process.env.STORE_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -77,7 +103,7 @@ const urlOk = (s) => /^(https?:\/\/|\/uploads\/)/i.test(String(s || '').trim());
 // عرض المنتجات مع بحث + تصنيف + ترتيب (تفاعلي حقيقي)
 app.get('/api/products', (req, res) => {
   try {
-    let items = withMeta(readJson(P_FILE, []));
+    let items = withMeta(readProducts());
     const q = String(req.query.q || '').toLowerCase().trim();
     const cat = String(req.query.cat || '').trim();
     const sort = String(req.query.sort || 'new');
@@ -86,7 +112,7 @@ app.get('/api/products', (req, res) => {
     if (sort === 'price_asc') items = [...items].sort((a, b) => a.price - b.price);
     else if (sort === 'price_desc') items = [...items].sort((a, b) => b.price - a.price);
     else if (sort === 'rating') items = [...items].sort((a, b) => b.rating.avg - a.rating.avg);
-    const all = withMeta(readJson(P_FILE, []));
+    const all = withMeta(readProducts());
     const cats = {};
     all.forEach((p) => { cats[p.category] = (cats[p.category] || 0) + 1; });
     res.json({
@@ -130,7 +156,7 @@ app.post('/api/reviews', (req, res) => {
 // رابط الشراء عبر المتجر: يحسب نقرة ثم يحول لرابط العمولة (تتبع حقيقي)
 app.get('/go/:id', (req, res) => {
   try {
-    const p = readJson(P_FILE, []).find((x) => String(x.id) === String(req.params.id));
+    const p = readProducts().find((x) => String(x.id) === String(req.params.id));
     const clicks = readJson(C_FILE, {});
     clicks[String(req.params.id)] = (clicks[String(req.params.id)] || 0) + 1;
     writeJson(C_FILE, clicks);
@@ -144,7 +170,7 @@ app.get('/go/:id', (req, res) => {
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 
 function stats() {
-  const products = withMeta(readJson(P_FILE, []));
+  const products = withMeta(readProducts());
   const clicks = readJson(C_FILE, {});
   const sales = readJson(SA_FILE, []);
   let tClicks = 0, tSales = 0, tRevenue = 0, tProfit = 0;
@@ -167,7 +193,7 @@ app.get('/api/admin/stats', (req, res) => {
 // بيانات المنتجات الكاملة للتعديل (للإدارة فقط)
 app.get('/api/admin/products', (req, res) => {
   if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
-  res.json({ ok: true, items: readJson(P_FILE, []) });
+  res.json({ ok: true, items: readProducts() });
 });
 
 // رفع صور من الجهاز (حتى 8 صور، 5MB للصورة)
@@ -212,7 +238,7 @@ app.post('/api/admin/product', (req, res) => {
     if (video && !urlOk(video) && !/(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(video)) {
       return res.status(400).json({ error: 'invalid-video' });
     }
-    const all = readJson(P_FILE, []);
+    const all = readProducts();
     const item = {
       id: String(id || `my-${Date.now()}`),
       title: String(title).slice(0, 200), price: Number(price),
@@ -222,7 +248,8 @@ app.post('/api/admin/product', (req, res) => {
     };
     const i = all.findIndex((x) => String(x.id) === item.id);
     if (i >= 0) all[i] = { ...all[i], ...item }; else all.unshift(item);
-    writeJson(P_FILE, all.slice(0, 200));
+    const saved = all.slice(0, 200);
+    writeJson(P_FILE, saved); backupProducts(saved);
     res.json({ ok: true, id: item.id });
   } catch (e) { res.status(500).json({ error: 'save-failed' }); }
 });
@@ -231,7 +258,8 @@ app.post('/api/admin/product/delete', (req, res) => {
   try {
     if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
     const cur = readGuarded(P_FILE); if (cur === null) return res.status(500).json({ error: 'no-data' });
-    writeJson(P_FILE, cur.filter((x) => String(x.id) !== String(req.body?.id)));
+    const kept = cur.filter((x) => String(x.id) !== String(req.body?.id));
+    writeJson(P_FILE, kept); backupProducts(kept);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message === 'data-unavailable' ? 'data-unavailable' : 'delete-failed' }); }
 });
@@ -240,7 +268,8 @@ app.post('/api/admin/clear-demo', (req, res) => {
   try {
     if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
     const cur = readGuarded(P_FILE); if (cur === null) return res.status(500).json({ error: 'no-data' });
-    writeJson(P_FILE, cur.filter((x) => x.source === 'manual'));
+    const kept = cur.filter((x) => x.source === 'manual');
+    writeJson(P_FILE, kept); backupProducts(kept);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message === 'data-unavailable' ? 'data-unavailable' : 'clear-failed' }); }
 });
@@ -249,7 +278,7 @@ app.post('/api/admin/clear-demo', (req, res) => {
 app.post('/api/admin/sale', (req, res) => {
   try {
     if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
-    const p = readJson(P_FILE, []).find((x) => String(x.id) === String(req.body?.id));
+    const p = readProducts().find((x) => String(x.id) === String(req.body?.id));
     if (!p) return res.status(404).json({ error: 'no-product' });
     const amount = Number(req.body?.amount ?? p.price);
     if (!(amount > 0)) return res.status(400).json({ error: 'invalid-amount' });
@@ -265,11 +294,11 @@ async function doSync() {
   const kw = process.env.ALI_KEYWORDS || 'watch';
   const size = Number(process.env.ALI_PAGE_SIZE || 20);
   const { items, mode } = await searchProducts({ keywords: kw, pageSize: size });
-  const old = readJson(P_FILE, []);
+  const old = readProducts();
   const oldIds = new Set(old.map((p) => p.id));
   const fresh = items.filter((p) => !oldIds.has(p.id));
   const merged = [...fresh, ...old].slice(0, 200);
-  writeJson(P_FILE, merged);
+  writeJson(P_FILE, merged); backupProducts(merged);
   let mailed = { sent: 0, reason: 'no-new' };
   let telegram = { ok: false, reason: 'no-new' };
   if (fresh.length) {
@@ -293,7 +322,7 @@ app.post('/api/sync', async (req, res) => {
 
 app.get('/sitemap.xml', (req, res) => {
   try {
-    res.type('text/xml').send(buildSitemap(storeUrl(), readJson(P_FILE, [])));
+    res.type('text/xml').send(buildSitemap(storeUrl(), readProducts()));
   } catch { res.status(500).end(); }
 });
 
@@ -305,10 +334,10 @@ app.get('/robots.txt', (req, res) => {
 app.get('/p/:id', (req, res) => {
   try {
     const id = req.params.id;
-    const found = withMeta(readJson(P_FILE, [])).find((p) => String(p.id) === String(id));
+    const found = withMeta(readProducts()).find((p) => String(p.id) === String(id));
     if (!found) return res.status(404).type('text/html').send('<h1>المنتج غير موجود</h1><a href="/">عودة للمتجر</a>');
     const p = found;
-    const all = withMeta(readJson(P_FILE, []));
+    const all = withMeta(readProducts());
     const related = all.filter((x) => x.id !== p.id && x.category === p.category).slice(0, 4);
     const url = `${storeUrl()}/p/${encodeURIComponent(p.id)}`;
     const reviews = readJson(R_FILE, []).filter((r) => String(r.id) === String(p.id)).slice(-20).reverse();
@@ -374,7 +403,7 @@ ${related.length ? `<h2 class="font-black mt-6 mb-2 text-lg">قد يعجبك أ�
 
 app.get('/api/health', (req, res) => res.json({
   ok: true, mode: (process.env.ALI_APP_KEY ? 'aliexpress' : 'demo'),
-  products: readJson(P_FILE, []).length, subscribers: readJson(S_FILE, []).length,
+  products: readProducts().length, subscribers: readJson(S_FILE, []).length,
   mail: process.env.BREVO_API_KEY ? 'brevo' : (process.env.SMTP_USER ? 'smtp' : 'off'),
   telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
 }));
