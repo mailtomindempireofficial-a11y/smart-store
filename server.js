@@ -29,6 +29,8 @@ const R_FILE = path.join(DATA, 'reviews.json');
 const C_FILE = path.join(DATA, 'clicks.json');
 const SA_FILE = path.join(DATA, 'sales.json');
 const AR_FILE = path.join(DATA, 'articles.json');
+const RF_FILE = path.join(DATA, 'refs.json');
+const refOk = (c) => typeof c === 'string' && /^[A-Za-z0-9-]{3,24}$/.test(c.trim());
 try { fs.mkdirSync(DATA, { recursive: true }); } catch {}
 function readJson(f, fb) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return fb; } }
 function writeJson(f, v) { const t = f + '.tmp'; fs.writeFileSync(t, JSON.stringify(v, null, 2)); fs.renameSync(t, f); }
@@ -181,6 +183,12 @@ app.post('/api/subscribe', async (req, res) => {
     const isNew = !list.includes(email);
     if (isNew) {
       list.push(email); writeJson(S_FILE, list);
+      const ref = String(req.body?.ref || '').trim();
+      if (refOk(ref)) {
+        const refs = readJson(RF_FILE, {});
+        refs[ref] = { visits: refs[ref]?.visits || 0, subs: (refs[ref]?.subs || 0) + 1 };
+        writeJson(RF_FILE, refs);
+      }
       sendCampaign({ toList: [email], subject: 'أهلاً بك في متجرك الذكي', html: welcomeHtml(storeUrl()) })
         .catch((e) => console.error('welcome-fail', e.message));
     }
@@ -232,7 +240,8 @@ function stats(code = 'USD') {
     tClicks += c; tSales += s.length; tRevenue += revenue; tProfit += profit;
     return { id: p.id, title: p.title, price: p.price, commission: commOf(p), clicks: c, sales: s.length, revenue: conv(revenue, code), profit: conv(profit, code) };
   });
-  return { rows, totals: { clicks: tClicks, sales: tSales, revenue: conv(tRevenue, code), profit: conv(tProfit, code) }, currency: curCode(code), symbol: sym(code) };
+  return { rows, totals: { clicks: tClicks, sales: tSales, revenue: conv(tRevenue, code), profit: conv(tProfit, code) }, currency: curCode(code), symbol: sym(code),
+    refs: Object.entries(readJson(RF_FILE, {})).map(([code, v]) => ({ code, visits: v.visits || 0, subs: v.subs || 0 })).sort((a, b) => b.subs - a.subs || b.visits - a.visits).slice(0, 20) };
 }
 
 app.get('/api/admin/stats', (req, res) => {
@@ -442,6 +451,26 @@ app.post('/api/admin/digest', async (req, res) => {
     if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
     res.json({ ok: true, ...(await sendDigest('manual')) });
   } catch (e) { res.status(500).json({ error: 'digest-failed', detail: e.message }); }
+});
+
+// الإحالات: الزوار يجلبون زواراً (انتشار ذاتي)
+app.get('/api/ref', (req, res) => {
+  try {
+    const code = String(req.query.code || '').trim();
+    if (!refOk(code)) return res.status(400).json({ error: 'bad-code' });
+    const all = readJson(RF_FILE, {});
+    all[code] = { visits: (all[code]?.visits || 0) + 1, subs: all[code]?.subs || 0 };
+    writeJson(RF_FILE, all);
+    res.json({ ok: true, ...all[code] });
+  } catch (e) { res.status(500).json({ error: 'ref-failed' }); }
+});
+app.get('/api/ref/me', (req, res) => {
+  try {
+    const code = String(req.query.code || '').trim();
+    if (!refOk(code)) return res.status(400).json({ error: 'bad-code' });
+    const all = readJson(RF_FILE, {});
+    res.json({ ok: true, visits: all[code]?.visits || 0, subs: all[code]?.subs || 0 });
+  } catch (e) { res.status(500).json({ error: 'ref-failed' }); }
 });
 
 // المزامنة: تجلب المنتجات وتنشرها وتسوق لها (ايميل + تيليجرام) تلقائياً
