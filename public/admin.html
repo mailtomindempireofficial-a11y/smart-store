@@ -107,7 +107,7 @@ loadStore();
 async function editRow(id){const j=await api('/api/admin/products');const p=(j.items||[]).find(x=>String(x.id)===String(id));if(!p)return;
 const s=(v,id)=>document.getElementById(id).value=v||'';s(p.id,'f-id');s(p.title,'f-title');s(p.price,'f-price');s(p.oldPrice,'f-old');s(p.image,'f-img');
 s((p.images||[]).join('\n'),'f-images');s(p.video,'f-video');s(p.url,'f-url');s(p.commission,'f-comm');previewLinks();window.scrollTo({top:0,behavior:'smooth'});}
-async function del(id){if(confirm('حذف؟')){await api('/api/admin/product/delete',{id});load();}}
+async function del(id){await api('/api/admin/product/delete',{id});load();}
 async function sale(id){const a=prompt('مبلغ البيع $ (اتركه فارغاً لسعر المنتج)','');if(a===null)return;await api('/api/admin/sale',{id,amount:a||undefined});load();}
 async function clearDemo(){if(confirm('حذف كل المنتجات التجريبية؟')){await api('/api/admin/clear-demo',{});load();}}
 </script>

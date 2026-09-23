@@ -11,7 +11,7 @@ const { sendCampaign, newProductsHtml, welcomeHtml, postToTelegram, buildSitemap
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { etag: false, maxAge: 0, setHeaders: (res, fp) => { if (fp.endsWith('.html')) res.setHeader('Cache-Control', 'no-store'); } }));
 
 const DATA = path.join(__dirname, 'data');
 const P_FILE = path.join(DATA, 'products.json');
