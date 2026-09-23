@@ -5,6 +5,10 @@
 <title>متجري الذكي — وجهة التسوق الفاخرة</title>
 <meta name="description" content="منتجات مختارة بعناية تتجدد تلقائياً، تجربة تسوق فاخرة، وعروض تصلك أولاً بأول."/>
 <meta property="og:title" content="متجري الذكي — تسوق بذوق الملوك"/><meta property="og:type" content="website"/>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#0A0A0F"/>
+<link rel="apple-touch-icon" href="/icon-192.png"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -218,5 +222,6 @@ if(stage&&!matchMedia('(prefers-reduced-motion:reduce)').matches){
   stage.style.transform=`rotateY(${x*6}deg) rotateX(${-y*6}deg)`;});
 }
 applyI18n();health();boot().then(load);
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});}
 </script>
 </body></html>

@@ -418,6 +418,31 @@ app.post('/api/admin/sale', (req, res) => {
   } catch (e) { res.status(500).json({ error: 'sale-failed' }); }
 });
 
+// النشرة الأسبوعية التلقائية: أحدث المنتجات للمشتركين كل يوم محدد
+const META_FILE = path.join(DATA, 'meta.json');
+function readMeta() { try { return JSON.parse(fs.readFileSync(META_FILE, 'utf8')); } catch { return {}; } }
+function writeMeta(m) { try { writeJson(META_FILE, m); } catch {} }
+async function sendDigest(reason) {
+  const subs = readJson(S_FILE, []);
+  if (!subs.length) return { sent: 0, reason: 'no-subscribers' };
+  const items = withMeta(readProducts()).slice(0, Number(process.env.DIGEST_COUNT || 6));
+  if (!items.length) return { sent: 0, reason: 'no-products' };
+  const mailed = await sendCampaign({
+    toList: subs,
+    subject: 'تشكيلة الأسبوع الفاخرة من متجرك الذكي',
+    html: newProductsHtml(items, storeUrl()),
+  });
+  const meta = readMeta(); meta.lastDigest = new Date().toISOString().slice(0, 10); writeMeta(meta);
+  console.log(`[digest:${reason}] sent=${mailed.sent}`);
+  return mailed;
+}
+app.post('/api/admin/digest', async (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    res.json({ ok: true, ...(await sendDigest('manual')) });
+  } catch (e) { res.status(500).json({ error: 'digest-failed', detail: e.message }); }
+});
+
 // المزامنة: تجلب المنتجات وتنشرها وتسوق لها (ايميل + تيليجرام) تلقائياً
 async function doSync() {
   const kw = process.env.ALI_KEYWORDS || 'watch';
@@ -628,5 +653,15 @@ if (require.main === module) {
       if (r.new) console.log(`[auto-sync] +${r.new} mail=${r.mailed.sent} tg=${r.telegram.ok}`);
     } catch (e) { console.error('[auto-sync-fail]', e.message); }
   }, everyH * 3600 * 1000);
+  // فحص النشرة الأسبوعية كل ساعة (اليوم الافتراضي: الجمعة)
+  const digestDay = Number(process.env.DIGEST_DAY ?? 5);
+  setInterval(async () => {
+    try {
+      const now = new Date();
+      const meta = readMeta();
+      const today = now.toISOString().slice(0, 10);
+      if (now.getDay() === digestDay && meta.lastDigest !== today) await sendDigest('weekly');
+    } catch (e) { console.error('[digest-fail]', e.message); }
+  }, 3600 * 1000);
 }
 module.exports = app;
