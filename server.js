@@ -261,7 +261,7 @@ app.get('/api/admin/products', (req, res) => {
   res.json({ ok: true, items: readProducts() });
 });
 
-// رفع صور من الجهاز (حتى 8 صور، 5MB للصورة)
+// رفع صور من الجهاز (حتى 20 صورة، 5MB للصورة)
 app.post('/api/admin/upload-images', (req, res) => {
   if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
   upImages(req, res, (err) => {
@@ -512,7 +512,8 @@ const CODEV = (() => { try { return require('child_process').execSync('git rev-p
 if (require.main === module) {
   app.listen(PORT, () => console.log(`Smart-Store on http://localhost:${PORT}`));
   const everyH = Number(process.env.SYNC_EVERY_HOURS || 6);
-  setInterval(async () => {
+  const autoOff = String(process.env.AUTO_SYNC || 'on').toLowerCase() === 'off';
+  if (!autoOff) setInterval(async () => {
     try {
       const r = await doSync();
       if (r.new) console.log(`[auto-sync] +${r.new} mail=${r.mailed.sent} tg=${r.telegram.ok}`);
