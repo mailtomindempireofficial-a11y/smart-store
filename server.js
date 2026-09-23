@@ -16,6 +16,8 @@ const DATA = path.join(__dirname, 'data');
 const P_FILE = path.join(DATA, 'products.json');
 const S_FILE = path.join(DATA, 'subscribers.json');
 const R_FILE = path.join(DATA, 'reviews.json');
+const C_FILE = path.join(DATA, 'clicks.json');
+const SA_FILE = path.join(DATA, 'sales.json');
 try { fs.mkdirSync(DATA, { recursive: true }); } catch {}
 function readJson(f, fb) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return fb; } }
 function writeJson(f, v) { fs.writeFileSync(f, JSON.stringify(v, null, 2)); }
@@ -38,8 +40,14 @@ function ratingOf(id, reviews) {
 }
 function withMeta(items) {
   const reviews = readJson(R_FILE, []);
-  return items.map((p) => ({ ...p, category: categoryOf(p), rating: ratingOf(p.id, reviews) }));
+  return items.map((p) => ({ ...p, category: p.category || categoryOf(p), rating: ratingOf(p.id, reviews) }));
 }
+// ما يراه الزوار فقط — بدون بيانات العمولة والأرباح (سرية)
+function publicProduct(p) {
+  return { id: p.id, title: p.title, price: p.price, oldPrice: p.oldPrice, image: p.image, category: p.category, rating: p.rating, source: p.source };
+}
+const adminOk = (req) => String(req.query.key || req.body?.key || '') === String(process.env.ADMIN_PASS || 'admin123');
+const commOf = (p) => Number(p.commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8);
 
 // عرض المنتجات مع بحث + تصنيف + ترتيب (تفاعلي حقيقي)
 app.get('/api/products', (req, res) => {
@@ -57,7 +65,7 @@ app.get('/api/products', (req, res) => {
     const cats = {};
     all.forEach((p) => { cats[p.category] = (cats[p.category] || 0) + 1; });
     res.json({
-      count: items.length, total: all.length, items,
+      count: items.length, total: all.length, items: items.map(publicProduct),
       categories: Object.entries(cats).map(([name, count]) => ({ name, count })),
     });
   } catch (e) { res.status(500).json({ error: 'read-failed' }); }
@@ -92,6 +100,97 @@ app.post('/api/reviews', (req, res) => {
     writeJson(R_FILE, all.slice(-1000));
     res.json({ ok: true, rating: ratingOf(id, all) });
   } catch (e) { res.status(500).json({ error: 'review-failed' }); }
+});
+
+// رابط الشراء عبر المتجر: يحسب نقرة ثم يحول لرابط العمولة (تتبع حقيقي)
+app.get('/go/:id', (req, res) => {
+  try {
+    const p = readJson(P_FILE, []).find((x) => String(x.id) === String(req.params.id));
+    const clicks = readJson(C_FILE, {});
+    clicks[String(req.params.id)] = (clicks[String(req.params.id)] || 0) + 1;
+    writeJson(C_FILE, clicks);
+    let dest = p?.url || '/';
+    if (!/^https?:\/\//i.test(dest)) dest = '/';
+    res.redirect(dest);
+  } catch { res.redirect('/'); }
+});
+
+// لوحة الإدارة (بكلمة سر): منتجات حقيقية + أرباح
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+
+function stats() {
+  const products = withMeta(readJson(P_FILE, []));
+  const clicks = readJson(C_FILE, {});
+  const sales = readJson(SA_FILE, []);
+  let tClicks = 0, tSales = 0, tRevenue = 0, tProfit = 0;
+  const rows = products.map((p) => {
+    const c = clicks[String(p.id)] || 0;
+    const s = sales.filter((x) => String(x.id) === String(p.id));
+    const revenue = s.reduce((a, x) => a + Number(x.amount || 0), 0);
+    const profit = s.reduce((a, x) => a + Number(x.amount || 0) * Number(x.commission ?? commOf(p)) / 100, 0);
+    tClicks += c; tSales += s.length; tRevenue += revenue; tProfit += profit;
+    return { id: p.id, title: p.title, price: p.price, commission: commOf(p), clicks: c, sales: s.length, revenue: Math.round(revenue * 100) / 100, profit: Math.round(profit * 100) / 100 };
+  });
+  return { rows, totals: { clicks: tClicks, sales: tSales, revenue: Math.round(tRevenue * 100) / 100, profit: Math.round(tProfit * 100) / 100 } };
+}
+
+app.get('/api/admin/stats', (req, res) => {
+  if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  res.json({ ok: true, ...stats() });
+});
+
+// إضافة / تعديل منتج حقيقي برابط عمولتك ونسبة ربحك
+app.post('/api/admin/product', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    const { id, title, price, oldPrice, image, url, commission } = req.body || {};
+    if (!String(title || '').trim() || !(Number(price) > 0) || !/^https?:\/\//i.test(String(url || ''))) {
+      return res.status(400).json({ error: 'invalid-product' });
+    }
+    const all = readJson(P_FILE, []);
+    const item = {
+      id: String(id || `my-${Date.now()}`),
+      title: String(title).slice(0, 200), price: Number(price),
+      oldPrice: Number(oldPrice) || 0, image: String(image || ''), url: String(url),
+      commission: Math.min(100, Math.max(0, Number(commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8))),
+      source: 'manual',
+    };
+    const i = all.findIndex((x) => String(x.id) === item.id);
+    if (i >= 0) all[i] = { ...all[i], ...item }; else all.unshift(item);
+    writeJson(P_FILE, all.slice(0, 200));
+    res.json({ ok: true, id: item.id });
+  } catch (e) { res.status(500).json({ error: 'save-failed' }); }
+});
+
+app.post('/api/admin/product/delete', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    writeJson(P_FILE, readJson(P_FILE, []).filter((x) => String(x.id) !== String(req.body?.id)));
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'delete-failed' }); }
+});
+
+app.post('/api/admin/clear-demo', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    writeJson(P_FILE, readJson(P_FILE, []).filter((x) => x.source === 'manual'));
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'clear-failed' }); }
+});
+
+// تسجيل عملية بيع مؤكدة (تراها في تقارير AliExpress) لحساب الربح الحقيقي
+app.post('/api/admin/sale', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    const p = readJson(P_FILE, []).find((x) => String(x.id) === String(req.body?.id));
+    if (!p) return res.status(404).json({ error: 'no-product' });
+    const amount = Number(req.body?.amount ?? p.price);
+    if (!(amount > 0)) return res.status(400).json({ error: 'invalid-amount' });
+    const all = readJson(SA_FILE, []);
+    const entry = { id: String(p.id), amount, commission: commOf(p), at: new Date().toISOString() };
+    all.push(entry); writeJson(SA_FILE, all.slice(-5000));
+    res.json({ ok: true, profit: Math.round(amount * entry.commission) / 100 });
+  } catch (e) { res.status(500).json({ error: 'sale-failed' }); }
 });
 
 // المزامنة: تجلب المنتجات وتنشرها وتسوق لها (ايميل + تيليجرام) تلقائياً
@@ -178,7 +277,7 @@ app.get('/p/:id', (req, res) => {
 <div class="font-amiri text-2xl mb-1">${escHtml(p.title)}</div>
 <div class="text-sm opacity-60 mb-2">${escHtml(p.category)} · <span class="text-amber-400">${stars(p.rating.avg)}</span> ${p.rating.avg || ''} (${p.rating.count})</div>
 <div class="gold-text font-black text-3xl mb-4">$${escHtml(p.price)}</div>
-<a href="${escHtml(p.url)}" target="_blank" rel="nofollow sponsored" class="gold-btn block text-center rounded-full py-3 text-lg">اشترِ الآن — عرض حصري</a>
+<a href="/go/${encodeURIComponent(p.id)}" target="_blank" rel="nofollow sponsored" class="gold-btn block text-center rounded-full py-3 text-lg">اشترِ الآن — عرض حصري</a>
 <div class="flex gap-2 mt-4 text-sm flex-wrap">
 <a class="border border-white/20 px-3 py-1.5 rounded-full" target="_blank" href="https://wa.me/?text=${share}%20${shareUrl}">واتساب</a>
 <a class="border border-white/20 px-3 py-1.5 rounded-full" target="_blank" href="https://t.me/share/url?url=${shareUrl}&text=${share}">تيليجرام</a>

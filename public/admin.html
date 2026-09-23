@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl" style="background:#0A0A0F">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>لوحة الإدارة — الأرباح</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>body{font-family:'Cairo',system-ui;background:#0A0A0F;color:#F5F1E6}
+.gold-text{background:linear-gradient(120deg,#8a6a1c,#D4AF37 35%,#F7E7B0 50%,#D4AF37 65%,#8a6a1c);-webkit-background-clip:text;background-clip:text;color:transparent}
+.glass{background:rgba(255,255,255,.045);border:1px solid rgba(212,175,55,.22)}
+.gold-btn{background:linear-gradient(135deg,#b8912b,#f3dfa0 50%,#b8912b);color:#241a05;font-weight:900}
+.inp{background:rgba(255,255,255,.08);border:1px solid rgba(212,175,55,.35);border-radius:.75rem;padding:.5rem .75rem;font-size:.85rem;width:100%}</style>
+</head>
+<body>
+<div class="max-w-5xl mx-auto p-4">
+<h1 class="font-black text-2xl">لوحة <span class="gold-text">الأرباح</span></h1>
+<div id="login" class="glass rounded-2xl p-5 mt-4">
+<p class="text-sm opacity-70 mb-2">أدخل كلمة سر الإدارة (ADMIN_PASS)</p>
+<div class="flex gap-2"><input id="key" type="password" class="inp" placeholder="كلمة السر"/><button onclick="enter()" class="gold-btn px-6 rounded-xl">دخول</button></div>
+</div>
+<div id="panel" class="hidden">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-clicks">0</div><div class="text-xs opacity-60">نقرات الشراء</div></div>
+<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-sales">0</div><div class="text-xs opacity-60">مبيعات مؤكدة</div></div>
+<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-rev">$0</div><div class="text-xs opacity-60">إجمالي المبيعات</div></div>
+<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl gold-text" id="t-profit">$0</div><div class="text-xs opacity-60">صافي ربحك</div></div>
+</div>
+<div class="glass rounded-2xl p-5 mt-4">
+<h2 class="font-black mb-3">إضافة منتج حقيقي برابط عمولتك</h2>
+<div class="grid md:grid-cols-3 gap-2">
+<input id="f-title" class="inp" placeholder="اسم المنتج"/>
+<input id="f-price" type="number" class="inp" placeholder="السعر $"/>
+<input id="f-old" type="number" class="inp" placeholder="السعر قبل الخصم $ (اختياري)"/>
+<input id="f-img" class="inp md:col-span-2" placeholder="رابط الصورة"/>
+<input id="f-comm" type="number" class="inp" placeholder="نسبة عمولتك % (مثال 8)"/>
+<input id="f-url" class="inp md:col-span-3" placeholder="رابط العمولة (رابط AliExpress بالـ Tracking الخاص بك)"/>
+</div>
+<button onclick="saveProduct()" class="gold-btn px-6 py-2 rounded-xl mt-3">حفظ المنتج</button>
+<span id="fmsg" class="text-sm mr-2"></span>
+</div>
+<div class="glass rounded-2xl p-5 mt-4">
+<div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+<h2 class="font-black">منتجاتك وأرباحها</h2>
+<button onclick="clearDemo()" class="text-xs border border-red-500/60 text-red-300 px-3 py-1.5 rounded-full">حذف المنتجات التجريبية</button>
+</div>
+<div class="overflow-x-auto"><table class="w-full text-sm">
+<thead><tr class="opacity-60 text-xs"><th class="p-2 text-right">المنتج</th><th class="p-2">السعر</th><th class="p-2">عمولة%</th><th class="p-2">نقرات</th><th class="p-2">مبيعات</th><th class="p-2">الربح$</th><th class="p-2">إجراءات</th></tr></thead>
+<tbody id="rows"></tbody></table></div>
+</div>
+</div></div>
+<script>
+let KEY='';
+function enter(){KEY=document.getElementById('key').value;load();}
+async function api(path,body){const r=await fetch(path+(body?'':'?key='+encodeURIComponent(KEY)),{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify({...body,key:KEY}):undefined});if(r.status===401){alert('كلمة السر خاطئة');throw 0;}return r.json();}
+async function load(){try{const j=await api('/api/admin/stats');
+document.getElementById('login').classList.add('hidden');document.getElementById('panel').classList.remove('hidden');
+document.getElementById('t-clicks').textContent=j.totals.clicks;document.getElementById('t-sales').textContent=j.totals.sales;
+document.getElementById('t-rev').textContent='$'+j.totals.revenue;document.getElementById('t-profit').textContent='$'+j.totals.profit;
+document.getElementById('rows').innerHTML=j.rows.map(p=>`<tr class="border-t border-white/10">
+<td class="p-2">${p.title.slice(0,40)}</td><td class="p-2 text-center">$${p.price}</td><td class="p-2 text-center">${p.commission}%</td>
+<td class="p-2 text-center">${p.clicks}</td><td class="p-2 text-center">${p.sales}</td><td class="p-2 text-center gold-text font-black">$${p.profit}</td>
+<td class="p-2 text-center whitespace-nowrap"><button onclick="sale('${p.id}')" class="text-xs bg-emerald-600 px-2 py-1 rounded">+ بيع</button>
+<button onclick="del('${p.id}')" class="text-xs bg-red-700 px-2 py-1 rounded">حذف</button></td></tr>`).join('');
+}catch(e){}}
+async function saveProduct(){const g=id=>document.getElementById(id).value;
+const j=await api('/api/admin/product',{title:g('f-title'),price:g('f-price'),oldPrice:g('f-old'),image:g('f-img'),url:g('f-url'),commission:g('f-comm')||undefined});
+document.getElementById('fmsg').textContent=j.ok?'تم الحفظ':'بيانات ناقصة: الاسم والسعر ورابط العمولة';load();}
+async function del(id){if(confirm('حذف؟')){await api('/api/admin/product/delete',{id});load();}}
+async function sale(id){const a=prompt('مبلغ البيع $ (اتركه فارغاً لسعر المنتج)','');if(a===null)return;await api('/api/admin/sale',{id,amount:a||undefined});load();}
+async function clearDemo(){if(confirm('حذف كل المنتجات التجريبية؟')){await api('/api/admin/clear-demo',{});load();}}
+</script>
+</body></html>

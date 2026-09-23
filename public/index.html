@@ -31,6 +31,7 @@ body{font-family:'Cairo',system-ui;background:radial-gradient(1000px 500px at 85
 </style>
 </head>
 <body>
+<noscript><div style="background:#D4AF37;color:#000;text-align:center;padding:12px;font-weight:bold">فعّل JavaScript ليعمل المتجر</div></noscript>
 <!-- شريط علوي -->
 <div class="text-center text-xs py-2" style="background:linear-gradient(90deg,#8a6a1c,#D4AF37,#8a6a1c);color:#1d1404;font-weight:700">شحن سريع · منتجات مختارة بعناية · عروض حصرية للمشتركين</div>
 <header class="sticky top-0 z-50 glass" style="background:rgba(10,10,15,.8)">
@@ -139,6 +140,7 @@ function heart(id){let f=favs();f=f.includes(id)?f.filter(x=>x!==id):[...f,id];l
 const stars=a=>'★'.repeat(Math.round(a))+'☆'.repeat(Math.max(0,5-Math.round(a)));
 const disc=p=>(p.oldPrice&&p.oldPrice>p.price)?Math.round((1-p.price/p.oldPrice)*100):0;
 async function load(){
+ try{
  const q=document.getElementById('q').value,s=document.getElementById('sort').value;
  const r=await fetch('/api/products?q='+encodeURIComponent(q)+'&cat='+encodeURIComponent(curCat)+'&sort='+s);
  const j=await r.json();
@@ -154,7 +156,7 @@ async function load(){
  <div class="mt-1"><span class="gold-text font-black text-lg">$${p.price??''}</span>${p.oldPrice>p.price?`<span class="text-xs line-through opacity-40 mr-2">$${p.oldPrice}</span>`:''}</div>
  <div class="flex gap-1.5 mt-3">
  <button onclick="heart('${p.id}')" aria-label="مفضلة" class="px-2.5 py-1.5 rounded-xl border ${f?'bg-pink-600 border-pink-500 text-white':'border-white/20'}">♥</button>
- <a href="${p.url||'#'}" target="_blank" rel="nofollow sponsored" class="gold-btn flex-1 text-center rounded-xl py-1.5 text-sm">اشترِ الآن</a>
+ <a href="/go/${p.id}" target="_blank" rel="nofollow sponsored" class="gold-btn flex-1 text-center rounded-xl py-1.5 text-sm">اشترِ الآن</a>
  </div></div>`;}).join('')||'<p>لا نتائج — جرّب كلمة أخرى</p>';
  document.querySelectorAll('.tilt').forEach(card=>{
   card.addEventListener('mousemove',e=>{if(matchMedia('(prefers-reduced-motion:reduce)').matches)return;
@@ -166,6 +168,7 @@ async function load(){
  hero.forEach((p,i)=>{const im=document.querySelector(`[data-hero="${i}"]`),t=document.querySelector(`[data-herot="${i}"]`),pr=document.querySelector(`[data-herop="${i}"]`);
   if(im&&p.image)im.src=p.image; if(t&&p.title)t.textContent=p.title; if(pr)pr.textContent='$'+p.price;});
  const sp=document.getElementById('st-products'); if(sp)sp.textContent=j.total;
+ }catch(err){document.getElementById('grid').innerHTML='<p>تعذر تحميل المنتجات: '+err.message+'</p>';}
 }
 function setCat(c){curCat=c;load();}
 async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=(j.mode==='aliexpress'?'AliExpress حي':'وضع حصري')+` · ${j.products}`;updFav();}catch{}}
