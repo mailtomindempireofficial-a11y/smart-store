@@ -10,3 +10,4 @@ tunnel-out.log
 tunnel-err.log
 tunnel.log
 data/views.log
+tunnel-*.log
