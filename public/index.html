@@ -3,20 +3,28 @@
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>متجري الذكي — يبيع ويسوق لنفسه</title>
-<meta name="description" content="متجر ذاتي يسحب المنتجات تلقائيا من AliExpress Affiliate ويسوق عبر الايميل مجانا."/>
+<meta name="description" content="متجر ذاتي: منتجات متجددة تلقائياً، تقييمات حقيقية، وعروض تصلك بالايميل مجاناً."/>
+<meta property="og:title" content="متجري الذكي"/><meta property="og:type" content="website"/>
+<meta property="og:description" content="منتجات متجددة تلقائياً + عروض بالايميل"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>body{font-family:system-ui}</style>
 </head>
 <body class="bg-slate-50">
-<header class="bg-slate-900 text-white p-4 flex gap-3 items-center">
+<header class="bg-slate-900 text-white p-4 flex gap-2 items-center flex-wrap">
 <h1 class="font-bold text-lg">متجري الذكي</h1>
 <span id="mode" class="text-xs bg-slate-700 px-2 py-1 rounded">...</span>
-<input id="q" placeholder="ابحث..." class="mr-auto text-black px-3 py-1 rounded w-48"/>
-<button onclick="sync()" class="bg-emerald-500 px-3 py-1 rounded">مزامنة الآن</button>
+<input id="q" placeholder="ابحث..." class="text-black px-3 py-1 rounded w-40"/>
+<select id="sort" class="text-black px-2 py-1 rounded" onchange="load()">
+<option value="new">الأحدث</option><option value="price_asc">السعر: من الأقل</option>
+<option value="price_desc">السعر: من الأعلى</option><option value="rating">الأعلى تقييماً</option>
+</select>
+<button onclick="toggleFav()" class="bg-pink-600 px-3 py-1 rounded">♥ <span id="favc">0</span></button>
+<button onclick="sync()" class="bg-emerald-500 px-3 py-1 rounded mr-auto">مزامنة الآن</button>
 </header>
 <main class="p-4 max-w-6xl mx-auto">
+<div id="cats" class="flex gap-2 flex-wrap mb-3"></div>
 <div class="bg-white p-4 rounded-xl shadow mb-4 flex gap-2 flex-wrap items-center">
-<b>التسويق المجاني:</b>
+<b>العروض على ايميلك مجاناً:</b>
 <input id="email" placeholder="بريدك للعروض" class="border px-3 py-1 rounded"/>
 <button onclick="sub()" class="bg-blue-600 text-white px-3 py-1 rounded">اشترك</button>
 <span id="msg" class="text-sm text-slate-600"></span>
@@ -24,20 +32,35 @@
 <div id="grid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
 </main>
 <script>
-async function load(q=''){
- const r=await fetch('/api/products?q='+encodeURIComponent(q)); const j=await r.json();
- document.getElementById('grid').innerHTML=j.items.map(p=>`
+let curCat='', favOnly=false;
+const favs=()=>JSON.parse(localStorage.getItem('fav')||'[]');
+function updFav(){document.getElementById('favc').textContent=favs().length;}
+function toggleFav(){favOnly=!favOnly;load();}
+function heart(id){let f=favs();f=f.includes(id)?f.filter(x=>x!==id):[...f,id];localStorage.setItem('fav',JSON.stringify(f));updFav();load();}
+const stars=a=>'★'.repeat(Math.round(a))+'☆'.repeat(Math.max(0,5-Math.round(a)));
+async function load(){
+ const q=document.getElementById('q').value,s=document.getElementById('sort').value;
+ const r=await fetch('/api/products?q='+encodeURIComponent(q)+'&cat='+encodeURIComponent(curCat)+'&sort='+s);
+ const j=await r.json();
+ document.getElementById('cats').innerHTML=[''].concat(j.categories.map(c=>c.name)).map(c=>
+ `<button onclick="setCat('${c}')" class="px-3 py-1 rounded ${curCat===c?'bg-slate-900 text-white':'bg-white shadow'}">${c||'الكل'}</button>`).join('');
+ let items=j.items; if(favOnly){const f=favs();items=items.filter(p=>f.includes(p.id));}
+ document.getElementById('grid').innerHTML=items.map(p=>{const f=favs().includes(p.id);return `
  <div class="bg-white rounded-xl shadow p-3 flex flex-col">
- <img src="${p.image||''}" class="h-36 object-contain mb-2" loading="lazy"/>
- <div class="font-bold text-sm h-10 overflow-hidden">${p.title||''}</div>
+ <a href="/p/${encodeURIComponent(p.id)}"><img src="${p.image||''}" class="h-36 object-contain mb-2 mx-auto" loading="lazy"/></a>
+ <a href="/p/${encodeURIComponent(p.id)}" class="font-bold text-sm h-10 overflow-hidden">${p.title||''}</a>
+ <div class="text-xs text-slate-500">${p.category||''} · <span class="text-amber-500">${stars(p.rating.avg)}</span> (${p.rating.count})</div>
  <div class="text-emerald-600 font-bold">$${p.price??''}</div>
- <a href="${p.url||'#'}" target="_blank" class="mt-2 text-center bg-orange-500 text-white rounded py-1">اشترِ الآن</a>
- </div>`).join('')||'<p>لا منتجات بعد — اضغط مزامنة الآن</p>';
+ <div class="flex gap-1 mt-2">
+ <button onclick="heart('${p.id}')" class="px-2 py-1 rounded ${f?'bg-pink-600 text-white':'bg-slate-200'}">♥</button>
+ <a href="${p.url||'#'}" target="_blank" rel="nofollow sponsored" class="flex-1 text-center bg-orange-500 text-white rounded py-1">اشترِ الآن</a>
+ </div></div>`;}).join('')||'<p>لا نتائج — جرّب كلمة أخرى</p>';
 }
-async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=j.mode==='aliexpress'?'وضع AliExpress حي':'وضع تجريبي مجاني';}catch{}}
-async function sync(){document.getElementById('msg').textContent='جارٍ المزامنة...';const r=await fetch('/api/sync',{method:'POST'});const j=await r.json();document.getElementById('msg').textContent=j.ok?`تم: +${j.new} جديد (${j.mode})`:'فشل';load();}
-async function sub(){const email=document.getElementById('email').value;const r=await fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const j=await r.json();document.getElementById('msg').textContent=j.ok?'تم الاشتراك':'بريد غير صالح';}
-document.getElementById('q').oninput=e=>load(e.target.value);
+function setCat(c){curCat=c;load();}
+async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=(j.mode==='aliexpress'?'AliExpress حي':'تجريبي')+` · ${j.products} منتج`;updFav();}catch{}}
+async function sync(){document.getElementById('msg').textContent='جارٍ المزامنة...';const r=await fetch('/api/sync',{method:'POST'});const j=await r.json();document.getElementById('msg').textContent=j.ok?`تم: +${j.new} جديد · ايميل ${j.mailed.sent} · تيليجرام ${j.telegram.ok?'✓':'—'}`:'فشل';load();}
+async function sub(){const email=document.getElementById('email').value;const r=await fetch('/api/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const j=await r.json();document.getElementById('msg').textContent=j.ok?'تم الاشتراك — تفقد بريدك للترحيب':'بريد غير صالح';}
+document.getElementById('q').oninput=load;
 health();load();
 </script>
 </body></html>
