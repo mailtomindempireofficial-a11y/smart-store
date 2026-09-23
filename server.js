@@ -472,13 +472,14 @@ ${related.length ? `<h2 class="font-black mt-6 mb-2 text-lg">${T.related}</h2><d
 });
 
 app.get('/api/health', (req, res) => res.json({
-  ok: true, mode: (process.env.ALI_APP_KEY ? 'aliexpress' : 'demo'),
+  ok: true, boot: BOOT, mode: (process.env.ALI_APP_KEY ? 'aliexpress' : 'demo'),
   products: readProducts().length, subscribers: readJson(S_FILE, []).length,
   mail: process.env.BREVO_API_KEY ? 'brevo' : (process.env.SMTP_USER ? 'smtp' : 'off'),
   telegram: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
 }));
 
 const PORT = Number(process.env.PORT || 3000);
+const BOOT = new Date().toISOString().slice(0, 16).replace('T', ' ');
 if (require.main === module) {
   app.listen(PORT, () => console.log(`Smart-Store on http://localhost:${PORT}`));
   const everyH = Number(process.env.SYNC_EVERY_HOURS || 6);

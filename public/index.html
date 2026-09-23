@@ -127,7 +127,7 @@ body{font-family:'Cairo',system-ui;background:radial-gradient(1000px 500px at 85
 <input id="email" data-i18n-ph="emailPh" placeholder="بريدك الملكي..." class="bg-white/10 border border-yellow-700/40 px-4 py-2.5 rounded-full w-64 text-sm"/>
 <button onclick="sub()" class="gold-btn px-6 py-2.5 rounded-full text-sm" data-i18n="join">اشترك الآن</button>
 </div><div id="msg" class="text-sm mt-2 text-yellow-100/80"></div>
-<div class="text-xs opacity-40 mt-6">متجري الذكي © 2026 — النسخة الفاخرة الذهبية v2</div>
+<div class="text-xs opacity-40 mt-6">متجري الذكي © 2026 — النسخة الفاخرة الذهبية <span id="ver">...</span></div>
 </div>
 </footer>
 
@@ -178,7 +178,7 @@ async function load(){
  }catch(err){document.getElementById('grid').innerHTML='<p>'+t('loadFail')+err.message+'</p>';}
 }
 function setCat(c){curCat=c;load();}
-async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=(j.mode==='aliexpress'?t('modeLive'):t('modeDemo'))+` · ${j.products}`;updFav();}catch{}}
+async function health(){try{const r=await fetch('/api/health');const j=await r.json();document.getElementById('mode').textContent=(j.mode==='aliexpress'?t('modeLive'):t('modeDemo'))+` · ${j.products}`;document.getElementById('ver').textContent='v-'+j.boot;updFav();}catch{}}
 async function boot(){try{const s=await (await fetch('/api/settings-public')).json();LANG=s.lang==='en'?'en':'ar';
 document.documentElement.lang=LANG;document.documentElement.dir=s.dir||(LANG==='en'?'ltr':'rtl');}catch{}applyI18n();}
 async function sync(){const m=document.getElementById('msg');if(m)m.textContent=t('loading');const r=await fetch('/api/sync',{method:'POST'});const j=await r.json();if(m)m.textContent=j.ok?t('synced')(j.new):t('syncFail');load();}
