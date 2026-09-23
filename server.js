@@ -180,7 +180,7 @@ app.get('/go/:id', (req, res) => {
     const clicks = readJson(C_FILE, {});
     clicks[String(req.params.id)] = (clicks[String(req.params.id)] || 0) + 1;
     writeJson(C_FILE, clicks);
-    let dest = p?.url || '/';
+    let dest = String(p?.url || '/').trim().replace(/[\r\n\t]+/g, '');
     if (!/^https?:\/\//i.test(dest)) dest = '/';
     res.redirect(dest);
   } catch { res.redirect('/'); }
@@ -296,6 +296,7 @@ app.post('/api/admin/product', (req, res) => {
     let main = String(image || '').trim();
     if (main && !images.includes(main)) images.unshift(main);
     if (!main && images.length) main = images[0];
+    const cleanUrl = String(url).trim().replace(/[\r\n\t]+/g, '');
     // فيديو: رابط mp4 مباشر أو يوتيوب أو ملف مرفوع
     const video = String(req.body?.video || '').trim().slice(0, 500);
     if (video && !urlOk(video) && !/(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(video)) {
@@ -305,7 +306,7 @@ app.post('/api/admin/product', (req, res) => {
     const item = {
       id: String(id || `my-${Date.now()}`),
       title: String(title).slice(0, 200), price: Number(price),
-      oldPrice: Number(oldPrice) || 0, image: main, images, video, url: String(url),
+      oldPrice: Number(oldPrice) || 0, image: main, images, video, url: cleanUrl,
       commission: Math.min(100, Math.max(0, Number(commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8))),
       source: 'manual',
     };
