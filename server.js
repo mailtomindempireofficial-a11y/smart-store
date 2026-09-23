@@ -79,11 +79,31 @@ function withMeta(items) {
 }
 // ما يراه الزوار فقط — بدون بيانات العمولة والأرباح (سرية)
 function publicProduct(p) {
-  const imgs = (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])).slice(0, 8);
-  return { id: p.id, title: p.title, price: p.price, oldPrice: p.oldPrice, image: imgs[0] || '', images: imgs, video: p.video || '', category: p.category, rating: p.rating, source: p.source };
+  const imgs = (Array.isArray(p.images) && p.images.length ? p.images : (p.image ? [p.image] : [])).slice(0, 20);
+  const st = getSettings().store;
+  return { id: p.id, title: p.title, price: p.price, oldPrice: p.oldPrice, image: imgs[0] || '', images: imgs, video: p.video || '', category: p.category, rating: p.rating, source: p.source,
+    priceDisplay: conv(p.price, st.currency), oldDisplay: p.oldPrice ? conv(p.oldPrice, st.currency) : 0, currency: curCode(st.currency), symbol: sym(st.currency) };
 }
 const adminOk = (req) => String(req.query.key || req.body?.key || '') === String(process.env.ADMIN_PASS || 'admin123');
 const commOf = (p) => Number(p.commission ?? process.env.ALI_DEFAULT_COMMISSION ?? 8);
+// اللغات والعملات: صندوق للمتجر + صندوق للوحة (مستقلان)
+const SET_FILE = path.join(DATA, 'settings.json');
+const CURR = {
+  USD: { rate: 1, sym: '$' }, EUR: { rate: 0.92, sym: '€' }, GBP: { rate: 0.79, sym: '£' },
+  EGP: { rate: 50.8, sym: 'ج.م' }, SAR: { rate: 3.75, sym: 'ر.س' }, AED: { rate: 3.67, sym: 'د.إ' },
+};
+function getSettings() {
+  try {
+    const s = JSON.parse(fs.readFileSync(SET_FILE, 'utf8'));
+    return {
+      store: { lang: s.store?.lang === 'en' ? 'en' : 'ar', currency: CURR[s.store?.currency] ? s.store.currency : 'USD' },
+      admin: { lang: s.admin?.lang === 'en' ? 'en' : 'ar', currency: CURR[s.admin?.currency] ? s.admin.currency : 'USD' },
+    };
+  } catch { return { store: { lang: 'ar', currency: 'USD' }, admin: { lang: 'ar', currency: 'USD' } }; }
+}
+const curCode = (c) => (CURR[c] ? c : 'USD');
+const conv = (usd, code) => Math.round(Number(usd || 0) * CURR[curCode(code)].rate * 100) / 100;
+const sym = (code) => CURR[curCode(code)].sym;
 // رفع الملفات من الجهاز إلى public/uploads
 const UP_DIR = path.join(__dirname, 'public', 'uploads');
 try { fs.mkdirSync(UP_DIR, { recursive: true }); } catch {}
@@ -96,7 +116,7 @@ const storage = multer.diskStorage({
 });
 const IMG_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const VID_MIME = ['video/mp4', 'video/webm', 'video/quicktime'];
-const upImages = multer({ storage, limits: { fileSize: 5 * 1024 * 1024, files: 8 }, fileFilter: (req, f, cb) => cb(null, IMG_MIME.includes(f.mimetype)) }).array('images', 8);
+const upImages = multer({ storage, limits: { fileSize: 5 * 1024 * 1024, files: 20 }, fileFilter: (req, f, cb) => cb(null, IMG_MIME.includes(f.mimetype)) }).array('images', 20);
 const upVideo = multer({ storage, limits: { fileSize: 80 * 1024 * 1024, files: 1 }, fileFilter: (req, f, cb) => cb(null, VID_MIME.includes(f.mimetype)) }).single('video');
 const urlOk = (s) => /^(https?:\/\/|\/uploads\/)/i.test(String(s || '').trim());
 
@@ -169,7 +189,7 @@ app.get('/go/:id', (req, res) => {
 // لوحة الإدارة (بكلمة سر): منتجات حقيقية + أرباح
 app.get('/admin', (req, res) => res.set('Cache-Control', 'no-store').sendFile(path.join(__dirname, 'public', 'admin.html')));
 
-function stats() {
+function stats(code = 'USD') {
   const products = withMeta(readProducts());
   const clicks = readJson(C_FILE, {});
   const sales = readJson(SA_FILE, []);
@@ -180,14 +200,39 @@ function stats() {
     const revenue = s.reduce((a, x) => a + Number(x.amount || 0), 0);
     const profit = s.reduce((a, x) => a + Number(x.amount || 0) * Number(x.commission ?? commOf(p)) / 100, 0);
     tClicks += c; tSales += s.length; tRevenue += revenue; tProfit += profit;
-    return { id: p.id, title: p.title, price: p.price, commission: commOf(p), clicks: c, sales: s.length, revenue: Math.round(revenue * 100) / 100, profit: Math.round(profit * 100) / 100 };
+    return { id: p.id, title: p.title, price: p.price, commission: commOf(p), clicks: c, sales: s.length, revenue: conv(revenue, code), profit: conv(profit, code) };
   });
-  return { rows, totals: { clicks: tClicks, sales: tSales, revenue: Math.round(tRevenue * 100) / 100, profit: Math.round(tProfit * 100) / 100 } };
+  return { rows, totals: { clicks: tClicks, sales: tSales, revenue: conv(tRevenue, code), profit: conv(tProfit, code) }, currency: curCode(code), symbol: sym(code) };
 }
 
 app.get('/api/admin/stats', (req, res) => {
   if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
-  res.json({ ok: true, ...stats() });
+  const code = getSettings().admin.currency;
+  res.json({ ok: true, ...stats(code) });
+});
+
+// إعدادات اللغة والعملة للجميع (عام) + للإدارة (بكلمة السر)
+app.get('/api/settings-public', (req, res) => {
+  const s = getSettings();
+  res.json({ lang: s.store.lang, dir: s.store.lang === 'en' ? 'ltr' : 'rtl', currency: s.store.currency });
+});
+app.get('/api/admin/settings', (req, res) => {
+  if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+  res.json({ ok: true, ...getSettings(), currencies: Object.keys(CURR) });
+});
+app.post('/api/admin/settings', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    const cur = getSettings();
+    for (const scope of ['store', 'admin']) {
+      const v = req.body?.[scope];
+      if (!v) continue;
+      if (v.lang === 'ar' || v.lang === 'en') cur[scope].lang = v.lang;
+      if (CURR[v.currency]) cur[scope].currency = v.currency;
+    }
+    writeJson(SET_FILE, cur);
+    res.json({ ok: true, ...cur });
+  } catch (e) { res.status(500).json({ error: 'save-failed' }); }
 });
 
 // بيانات المنتجات الكاملة للتعديل (للإدارة فقط)
@@ -207,7 +252,25 @@ app.post('/api/admin/upload-images', (req, res) => {
   });
 });
 
-// رفع فيديو من الجهاز (حتى 80MB: mp4/webm)
+// تنظيف ملفات الرفع غير المستخدمة في أي منتج (تحرير مساحة)
+app.post('/api/admin/upload-cleanup', (req, res) => {
+  try {
+    if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
+    const used = new Set();
+    readProducts().forEach((p) => {
+      [p.image, ...(Array.isArray(p.images) ? p.images : []), p.video].forEach((u) => {
+        const m = String(u || '').match(/^\/uploads\/([^/]+)$/);
+        if (m) used.add(m[1]);
+      });
+    });
+    let removed = 0;
+    fs.readdirSync(UP_DIR).forEach((f) => {
+      if (f === '.gitkeep' || used.has(f)) return;
+      try { fs.unlinkSync(path.join(UP_DIR, f)); removed++; } catch {}
+    });
+    res.json({ ok: true, removed });
+  } catch (e) { res.status(500).json({ error: 'cleanup-failed' }); }
+});
 app.post('/api/admin/upload-video', (req, res) => {
   if (!adminOk(req)) return res.status(401).json({ error: 'unauthorized' });
   upVideo(req, res, (err) => {
@@ -229,7 +292,7 @@ app.post('/api/admin/product', (req, res) => {
     let images = [];
     if (Array.isArray(req.body?.images)) images = req.body.images;
     else if (typeof req.body?.images === 'string') images = req.body.images.split('\n');
-    images = images.map((s) => String(s).trim()).filter(urlOk).slice(0, 8);
+    images = images.map((s) => String(s).trim()).filter(urlOk).slice(0, 20);
     let main = String(image || '').trim();
     if (main && !images.includes(main)) images.unshift(main);
     if (!main && images.length) main = images[0];
@@ -337,6 +400,12 @@ app.get('/p/:id', (req, res) => {
     const found = withMeta(readProducts()).find((p) => String(p.id) === String(id));
     if (!found) return res.status(404).type('text/html').send('<h1>المنتج غير موجود</h1><a href="/">عودة للمتجر</a>');
     const p = found;
+    const L = getSettings().store;
+    const lang = L.lang, dir = lang === 'en' ? 'ltr' : 'rtl';
+    const T = lang === 'en'
+      ? { back: '← Back to store', buy: 'Buy Now — Exclusive Offer', video: 'Watch the product video', rev: 'Elite reviews', first: 'Be the first to review this masterpiece', name: 'Name', opinion: 'Your elegant opinion...', rate: 'Rate', related: 'You may also like' }
+      : { back: '← عودة للمتجر', buy: 'اشترِ الآن — عرض حصري', video: 'شاهد المنتج بالفيديو', rev: 'آراء النخبة', first: 'كن أول من يقيّم هذه التحفة', name: 'اسمك', opinion: 'رأيك الراقي...', rate: 'قيّم', related: 'قد يعجبك أيضاً' };
+    const pd = conv(p.price, L.currency), symb = sym(L.currency);
     const all = withMeta(readProducts());
     const related = all.filter((x) => x.id !== p.id && x.category === p.category).slice(0, 4);
     const url = `${storeUrl()}/p/${encodeURIComponent(p.id)}`;
@@ -360,12 +429,12 @@ app.get('/p/:id', (req, res) => {
     let videoHtml = '';
     const vid = String(p.video || '');
     const yt = vid.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]{6,})/);
-    if (yt) videoHtml = `<div class="mt-4"><div class="font-black mb-2">شاهد المنتج بالفيديو</div><iframe class="w-full h-64 rounded-2xl" src="https://www.youtube.com/embed/${yt[1]}" frameborder="0" allowfullscreen loading="lazy"></iframe></div>`;
-    else if (urlOk(vid)) videoHtml = `<div class="mt-4"><div class="font-black mb-2">شاهد المنتج بالفيديو</div><video class="w-full rounded-2xl bg-black" controls preload="none" src="${escHtml(vid)}"></video></div>`;
-    res.type('text/html').send(`<!doctype html><html lang="ar" dir="rtl" style="background:#0A0A0F"><head><meta charset="utf-8"/>
+    if (yt) videoHtml = `<div class="mt-4"><div class="font-black mb-2">${T.video}</div><iframe class="w-full h-64 rounded-2xl" src="https://www.youtube.com/embed/${yt[1]}" frameborder="0" allowfullscreen loading="lazy"></iframe></div>`;
+    else if (urlOk(vid)) videoHtml = `<div class="mt-4"><div class="font-black mb-2">${T.video}</div><video class="w-full rounded-2xl bg-black" controls preload="none" src="${escHtml(vid)}"></video></div>`;
+    res.type('text/html').send(`<!doctype html><html lang="${lang}" dir="${dir}" style="background:#0A0A0F"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${escHtml(p.title)} — $${escHtml(p.price)} | متجري الذكي</title>
-<meta name="description" content="${escHtml(p.title)} بسعر $${escHtml(p.price)} — ${escHtml(p.category)}"/>
+<title>${escHtml(p.title)} — ${escHtml(symb)}${escHtml(pd)} | متجري الذكي</title>
+<meta name="description" content="${escHtml(p.title)} بسعر ${escHtml(symb)}${escHtml(pd)} — ${escHtml(p.category)}"/>
 <link rel="canonical" href="${escHtml(url)}"/>
 <meta property="og:title" content="${escHtml(p.title)}"/><meta property="og:image" content="${escHtml(p.image)}"/>
 <meta property="og:url" content="${escHtml(url)}"/><meta property="og:type" content="product"/>
@@ -374,28 +443,28 @@ app.get('/p/:id', (req, res) => {
 <script type="application/ld+json">${JSON.stringify(jsonld)}</script>
 <style>body{font-family:'Cairo',system-ui;background:radial-gradient(900px 400px at 80% 0%,#2a2113,transparent),#0A0A0F;color:#F5F1E6}.font-amiri{font-family:'Amiri',serif}.gold-text{background:linear-gradient(120deg,#8a6a1c,#D4AF37 35%,#F7E7B0 50%,#D4AF37 65%,#8a6a1c);-webkit-background-clip:text;background-clip:text;color:transparent}.glass{background:rgba(255,255,255,.045);border:1px solid rgba(212,175,55,.22);backdrop-filter:blur(14px)}.gold-btn{background:linear-gradient(135deg,#b8912b,#f3dfa0 50%,#b8912b);color:#241a05;font-weight:900}:focus-visible{outline:2px solid #D4AF37;outline-offset:2px}</style></head>
 <body><main class="max-w-3xl mx-auto p-4">
-<a href="/" class="text-yellow-200/80">← عودة للمتجر</a>
+<a href="/" class="text-yellow-200/80">${T.back}</a>
 <div class="glass rounded-3xl p-6 mt-3">
 <div class="mb-4"><img id="gmain" src="${escHtml(gallery[0] || '')}" class="h-64 w-full object-contain mx-auto rounded-2xl bg-white/95 p-3"/>
 ${gallery.length > 1 ? `<div class="flex gap-2 mt-2 justify-center flex-wrap">` + gallery.map((g, i) => `<img src="${escHtml(g)}" onclick="document.getElementById('gmain').src=this.src" onmouseover="document.getElementById('gmain').src=this.src" class="h-16 w-16 object-contain rounded-xl bg-white/95 p-1 cursor-pointer border ${i === 0 ? 'border-yellow-500' : 'border-white/20'}"/>`).join('') + `</div>` : ''}</div>
 ${videoHtml}
 <div class="font-amiri text-2xl mb-1">${escHtml(p.title)}</div>
 <div class="text-sm opacity-60 mb-2">${escHtml(p.category)} · <span class="text-amber-400">${stars(p.rating.avg)}</span> ${p.rating.avg || ''} (${p.rating.count})</div>
-<div class="gold-text font-black text-3xl mb-4">$${escHtml(p.price)}</div>
-<a href="/go/${encodeURIComponent(p.id)}" target="_blank" rel="nofollow sponsored" class="gold-btn block text-center rounded-full py-3 text-lg">اشترِ الآن — عرض حصري</a>
+<div class="gold-text font-black text-3xl mb-4">${escHtml(symb)}${escHtml(pd)}</div>
+<a href="/go/${encodeURIComponent(p.id)}" target="_blank" rel="nofollow sponsored" class="gold-btn block text-center rounded-full py-3 text-lg">${T.buy}</a>
 <div class="flex gap-2 mt-4 text-sm flex-wrap">
 <a class="border border-white/20 px-3 py-1.5 rounded-full" target="_blank" href="https://wa.me/?text=${share}%20${shareUrl}">واتساب</a>
 <a class="border border-white/20 px-3 py-1.5 rounded-full" target="_blank" href="https://t.me/share/url?url=${shareUrl}&text=${share}">تيليجرام</a>
 <a class="border border-white/20 px-3 py-1.5 rounded-full" target="_blank" href="https://twitter.com/intent/tweet?text=${share}&url=${shareUrl}">X</a>
 <a class="border border-white/20 px-3 py-1.5 rounded-full" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u=${shareUrl}">فيسبوك</a>
 </div></div>
-${related.length ? `<h2 class="font-black mt-6 mb-2 text-lg">قد يعجبك أيضاً</h2><div class="grid grid-cols-2 md:grid-cols-4 gap-3">` + related.map((r) => `<a href="/p/${encodeURIComponent(r.id)}" class="glass rounded-2xl p-2"><img src="${escHtml(r.image)}" class="h-24 w-full object-contain mx-auto rounded-xl bg-white/95 p-1"/><div class="text-xs font-bold h-8 overflow-hidden mt-1">${escHtml(r.title)}</div><div class="gold-text font-black text-sm">$${escHtml(r.price)}</div></a>`).join('') + `</div>` : ''}
-<div class="glass rounded-3xl p-6 mt-6"><h2 class="font-black mb-3">آراء النخبة (${p.rating.count})</h2>
-<div id="rev">${reviews.map((r) => `<div class="border-b border-white/10 py-2"><b>${escHtml(r.name)}</b> <span class="text-amber-400">${stars(r.rating)}</span><div class="text-sm opacity-80">${escHtml(r.text)}</div></div>`).join('') || '<p class="text-sm opacity-50">كن أول من يقيّم هذه التحفة</p>'}</div>
-<div class="flex gap-2 mt-3 flex-wrap"><input id="rn" placeholder="اسمك" class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-xl text-sm"/>
+${related.length ? `<h2 class="font-black mt-6 mb-2 text-lg">${T.related}</h2><div class="grid grid-cols-2 md:grid-cols-4 gap-3">` + related.map((r) => `<a href="/p/${encodeURIComponent(r.id)}" class="glass rounded-2xl p-2"><img src="${escHtml(r.image)}" class="h-24 w-full object-contain mx-auto rounded-xl bg-white/95 p-1"/><div class="text-xs font-bold h-8 overflow-hidden mt-1">${escHtml(r.title)}</div><div class="gold-text font-black text-sm">${escHtml(sym(L.currency))}${escHtml(conv(r.price, L.currency))}</div></a>`).join('') + `</div>` : ''}
+<div class="glass rounded-3xl p-6 mt-6"><h2 class="font-black mb-3">${T.rev} (${p.rating.count})</h2>
+<div id="rev">${reviews.map((r) => `<div class="border-b border-white/10 py-2"><b>${escHtml(r.name)}</b> <span class="text-amber-400">${stars(r.rating)}</span><div class="text-sm opacity-80">${escHtml(r.text)}</div></div>`).join('') || `<p class="text-sm opacity-50">${T.first}</p>`}</div>
+<div class="flex gap-2 mt-3 flex-wrap"><input id="rn" placeholder="${T.name}" class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-xl text-sm"/>
 <select id="rr" class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-xl text-sm"><option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option></select>
-<input id="rt" placeholder="رأيك الراقي..." class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-xl flex-1 text-sm"/>
-<button onclick="sendRev()" class="gold-btn px-4 py-1.5 rounded-xl text-sm">قيّم</button></div></div>
+<input id="rt" placeholder="${T.opinion}" class="bg-white/10 border border-yellow-700/40 px-2 py-1.5 rounded-xl flex-1 text-sm"/>
+<button onclick="sendRev()" class="gold-btn px-4 py-1.5 rounded-xl text-sm">${T.rate}</button></div></div>
 </main><script>async function sendRev(){const r=await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:${JSON.stringify(p.id)},name:document.getElementById('rn').value,rating:document.getElementById('rr').value,text:document.getElementById('rt').value})});if(r.ok)location.reload();else alert('اكتب تقييماً صحيحاً');}</script>
 </body></html>`);
   } catch (e) { res.status(500).type('text/html').send('خطأ داخلي'); }

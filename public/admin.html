@@ -8,107 +8,143 @@
 .gold-text{background:linear-gradient(120deg,#8a6a1c,#D4AF37 35%,#F7E7B0 50%,#D4AF37 65%,#8a6a1c);-webkit-background-clip:text;background-clip:text;color:transparent}
 .glass{background:rgba(255,255,255,.045);border:1px solid rgba(212,175,55,.22)}
 .gold-btn{background:linear-gradient(135deg,#b8912b,#f3dfa0 50%,#b8912b);color:#241a05;font-weight:900}
-.inp{background:rgba(255,255,255,.08);border:1px solid rgba(212,175,55,.35);border-radius:.75rem;padding:.5rem .75rem;font-size:.85rem;width:100%}</style>
+.inp{background:rgba(255,255,255,.08);border:1px solid rgba(212,175,55,.35);border-radius:.75rem;padding:.5rem .75rem;font-size:.85rem;width:100%}
+select.inp option{background:#14141C}:focus-visible{outline:2px solid #D4AF37;outline-offset:2px}</style>
 </head>
 <body>
 <div class="max-w-5xl mx-auto p-4">
-<h1 class="font-black text-2xl">لوحة <span class="gold-text">الأرباح</span></h1>
+<h1 class="font-black text-2xl"><span data-i18n="titleA">لوحة</span> <span class="gold-text" data-i18n="titleB">الأرباح</span></h1>
 <div id="storebar" class="glass rounded-2xl p-3 mt-3 text-sm flex gap-4 flex-wrap items-center">
-<span>متصلة بالمتجر: <a href="/" target="_blank" class="text-yellow-200 underline">عرض المتجر</a></span>
+<span><span data-i18n="connected">متصلة بالمتجر:</span> <a href="/" target="_blank" class="text-yellow-200 underline" data-i18n="viewStore">عرض المتجر</a></span>
 <span id="sb-info">...</span>
 </div>
 <div id="login" class="glass rounded-2xl p-5 mt-4">
-<p class="text-sm opacity-70 mb-2">أدخل كلمة سر الإدارة (ADMIN_PASS)</p>
-<div class="flex gap-2"><input id="key" type="password" class="inp" placeholder="كلمة السر"/><button onclick="enter()" class="gold-btn px-6 rounded-xl">دخول</button></div>
+<p class="text-sm opacity-70 mb-2" data-i18n="loginP">أدخل كلمة سر الإدارة (ADMIN_PASS)</p>
+<div class="flex gap-2"><input id="key" type="password" class="inp" placeholder="••••••"/><button onclick="enter()" class="gold-btn px-6 rounded-xl" data-i18n="loginBtn">دخول</button></div>
 </div>
 <div id="panel" class="hidden">
+<div class="grid md:grid-cols-2 gap-3 mt-4">
+<div class="glass rounded-2xl p-4"><h2 class="font-black mb-2">🏪 <span data-i18n="boxStore">لغة وعملة المتجر</span></h2>
+<div class="flex gap-2 flex-wrap">
+<select id="s-lang" class="inp" style="width:auto"><option value="ar">العربية</option><option value="en">English</option></select>
+<select id="s-cur" class="inp" style="width:auto"></select>
+<button onclick="saveSettings('store')" class="gold-btn px-5 rounded-xl text-sm" data-i18n="apply">تطبيق</button>
+</div></div>
+<div class="glass rounded-2xl p-4"><h2 class="font-black mb-2">📊 <span data-i18n="boxAdmin">لغة وعملة اللوحة</span></h2>
+<div class="flex gap-2 flex-wrap">
+<select id="a-lang" class="inp" style="width:auto"><option value="ar">العربية</option><option value="en">English</option></select>
+<select id="a-cur" class="inp" style="width:auto"></select>
+<button onclick="saveSettings('admin')" class="gold-btn px-5 rounded-xl text-sm" data-i18n="apply">تطبيق</button>
+</div></div>
+</div>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-clicks">0</div><div class="text-xs opacity-60">نقرات الشراء</div></div>
-<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-sales">0</div><div class="text-xs opacity-60">مبيعات مؤكدة</div></div>
-<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-rev">$0</div><div class="text-xs opacity-60">إجمالي المبيعات</div></div>
-<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl gold-text" id="t-profit">$0</div><div class="text-xs opacity-60">صافي ربحك</div></div>
+<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-clicks">0</div><div class="text-xs opacity-60" data-i18n="tClicks">نقرات الشراء</div></div>
+<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-sales">0</div><div class="text-xs opacity-60" data-i18n="tSales">مبيعات مؤكدة</div></div>
+<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl" id="t-rev">$0</div><div class="text-xs opacity-60" data-i18n="tRev">إجمالي المبيعات</div></div>
+<div class="glass rounded-2xl p-4 text-center"><div class="font-black text-2xl gold-text" id="t-profit">$0</div><div class="text-xs opacity-60" data-i18n="tProfit">صافي ربحك</div></div>
 </div>
 <div class="glass rounded-2xl p-5 mt-4">
-<h2 class="font-black mb-3">إضافة منتج حقيقي برابط عمولتك</h2>
+<h2 class="font-black mb-3" data-i18n="addT">إضافة منتج حقيقي برابط عمولتك</h2>
 <div class="grid md:grid-cols-3 gap-2">
-<input id="f-title" class="inp" placeholder="اسم المنتج"/>
-<input id="f-price" type="number" class="inp" placeholder="السعر $"/>
-<input id="f-old" type="number" class="inp" placeholder="السعر قبل الخصم $ (اختياري)"/>
-<input id="f-img" class="inp md:col-span-2" placeholder="رابط الصورة" oninput="previewLinks()"/>
-<input id="f-comm" type="number" class="inp" placeholder="نسبة عمولتك % (مثال 8)"/>
-<input id="f-url" class="inp md:col-span-3" placeholder="رابط العمولة (رابط AliExpress بالـ Tracking الخاص بك)"/>
-<textarea id="f-images" class="inp md:col-span-2" rows="2" placeholder="روابط صور إضافية — سطر لكل رابط (حتى 8)" oninput="previewLinks()"></textarea>
-<input id="f-video" class="inp" placeholder="رابط فيديو (mp4 أو يوتيوب) — اختياري"/>
+<input id="f-title" class="inp" data-i18n-ph="namePh" placeholder="اسم المنتج"/>
+<input id="f-price" type="number" class="inp" data-i18n-ph="pricePh" placeholder="السعر $"/>
+<input id="f-old" type="number" class="inp" data-i18n-ph="oldPh" placeholder="السعر قبل الخصم $ (اختياري)"/>
+<input id="f-img" class="inp md:col-span-2" data-i18n-ph="imgPh" placeholder="رابط الصورة" oninput="previewLinks()"/>
+<input id="f-comm" type="number" class="inp" data-i18n-ph="commPh" placeholder="نسبة عمولتك % (مثال 8)"/>
+<input id="f-url" class="inp md:col-span-3" data-i18n-ph="urlPh" placeholder="رابط العمولة (رابط AliExpress بالـ Tracking الخاص بك)"/>
+<textarea id="f-images" class="inp md:col-span-2" rows="2" data-i18n-ph="imgsPh" placeholder="روابط صور إضافية — سطر لكل رابط (حتى 20)" oninput="previewLinks()"></textarea>
+<input id="f-video" class="inp" data-i18n-ph="vidPh" placeholder="رابط فيديو (mp4 أو يوتيوب) — اختياري"/>
 <div id="prev-links" class="md:col-span-3 flex gap-1 flex-wrap text-xs"></div>
+<div id="cur-imgs" class="md:col-span-3 flex gap-1 flex-wrap"></div>
 <input id="f-id" type="hidden"/>
 </div>
 <div class="grid md:grid-cols-2 gap-2 mt-2">
-<label class="glass rounded-xl p-3 text-sm cursor-pointer">📷 رفع صور من جهازك (حتى 8)
+<label class="glass rounded-xl p-3 text-sm cursor-pointer">📷 <span data-i18n="upImgs">رفع صور من جهازك (حتى 20)</span>
 <input id="up-imgs" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple class="hidden" onchange="uploadImages()"/>
 <div id="prev-imgs" class="flex gap-1 mt-2 flex-wrap"></div></label>
-<label class="glass rounded-xl p-3 text-sm cursor-pointer">🎬 رفع فيديو من جهازك (mp4 حتى 80MB)
+<label class="glass rounded-xl p-3 text-sm cursor-pointer">🎬 <span data-i18n="upVid">رفع فيديو من جهازك (mp4 حتى 80MB)</span>
 <input id="up-vid" type="file" accept="video/mp4,video/webm" class="hidden" onchange="uploadVideo()"/>
 <div id="prev-vid" class="text-xs mt-2 opacity-70"></div></label>
 </div>
-<button onclick="saveProduct()" class="gold-btn px-6 py-2 rounded-xl mt-3">حفظ المنتج</button>
-<button onclick="resetForm()" class="text-xs border border-white/20 px-4 py-2 rounded-xl mt-3">جديد</button>
+<div class="flex gap-2 mt-3 flex-wrap items-center">
+<button onclick="saveProduct()" class="gold-btn px-6 py-2 rounded-xl" data-i18n="saveBtn">حفظ المنتج</button>
+<button onclick="resetForm()" class="text-xs border border-white/20 px-4 py-2 rounded-xl" data-i18n="newBtn">جديد</button>
+<button onclick="cleanup()" class="text-xs border border-white/20 px-4 py-2 rounded-xl opacity-70" data-i18n="cleanBtn">تنظيف ملفات غير مستخدمة</button>
 <span id="fmsg" class="text-sm mr-2"></span>
-</div>
+</div></div>
 <div class="glass rounded-2xl p-5 mt-4">
 <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-<h2 class="font-black">منتجاتك وأرباحها</h2>
-<button onclick="clearDemo()" class="text-xs border border-red-500/60 text-red-300 px-3 py-1.5 rounded-full">حذف المنتجات التجريبية</button>
+<h2 class="font-black" data-i18n="listT">منتجاتك وأرباحها</h2>
+<button onclick="clearDemo()" class="text-xs border border-red-500/60 text-red-300 px-3 py-1.5 rounded-full" data-i18n="clearBtn">حذف المنتجات التجريبية</button>
 </div>
 <div class="overflow-x-auto"><table class="w-full text-sm">
-<thead><tr class="opacity-60 text-xs"><th class="p-2 text-right">المنتج</th><th class="p-2">السعر</th><th class="p-2">عمولة%</th><th class="p-2">نقرات</th><th class="p-2">مبيعات</th><th class="p-2">الربح$</th><th class="p-2">إجراءات</th></tr></thead>
+<thead><tr class="opacity-60 text-xs"><th class="p-2 text-right" data-i18n="thP">المنتج</th><th class="p-2" data-i18n="thPr">السعر</th><th class="p-2" data-i18n="thC">عمولة%</th><th class="p-2" data-i18n="thCl">نقرات</th><th class="p-2" data-i18n="thS">مبيعات</th><th class="p-2" data-i18n="thPf">الربح</th><th class="p-2" data-i18n="thA">إجراءات</th></tr></thead>
 <tbody id="rows"></tbody></table></div>
 </div>
 </div></div>
 <script>
-let KEY='';
+const AD={ar:{titleA:"لوحة",titleB:"الأرباح",connected:"متصلة بالمتجر:",viewStore:"عرض المتجر",loginP:"أدخل كلمة سر الإدارة (ADMIN_PASS)",loginBtn:"دخول",badPass:"كلمة السر خاطئة",boxStore:"لغة وعملة المتجر",boxAdmin:"لغة وعملة اللوحة",apply:"تطبيق",setOk:"تم الحفظ",tClicks:"نقرات الشراء",tSales:"مبيعات مؤكدة",tRev:"إجمالي المبيعات",tProfit:"صافي ربحك",addT:"إضافة منتج حقيقي برابط عمولتك",namePh:"اسم المنتج",pricePh:"السعر $",oldPh:"السعر قبل الخصم $ (اختياري)",imgPh:"رابط الصورة",commPh:"نسبة عمولتك % (مثال 8)",urlPh:"رابط العمولة (رابط AliExpress بالـ Tracking الخاص بك)",imgsPh:"روابط صور إضافية — سطر لكل رابط (حتى 20)",vidPh:"رابط فيديو (mp4 أو يوتيوب) — اختياري",upImgs:"رفع صور من جهازك (حتى 20)",upVid:"رفع فيديو من جهازك (mp4 حتى 80MB)",saveBtn:"حفظ المنتج",newBtn:"جديد",cleanBtn:"تنظيف ملفات غير مستخدمة",cleaned:n=>`حُذف ${n} ملف`,saveOk:"تم الحفظ",saveBad:"بيانات ناقصة: الاسم والسعر ورابط العمولة",listT:"منتجاتك وأرباحها",clearBtn:"حذف المنتجات التجريبية",thP:"المنتج",thPr:"السعر",thC:"عمولة%",thCl:"نقرات",thS:"مبيعات",thPf:"الربح",thA:"إجراءات",sale:"+ بيع",edit:"تعديل",del:"حذف",askAmt:"مبلغ البيع $ (اتركه فارغاً لسعر المنتج)",askClear:"حذف كل المنتجات التجريبية؟",legend:"الأخضر = يعمل · الأحمر = ليس رابط صورة مباشر",uploading:"جارٍ الرفع...",upFail:"فشل الرفع",curImgs:"صور المنتج الحالية — اضغط × لحذف أي صورة:"},
+en:{titleA:"Profits",titleB:"dashboard",connected:"Connected to store:",viewStore:"View store",loginP:"Enter admin password (ADMIN_PASS)",loginBtn:"Login",badPass:"Wrong password",boxStore:"Store language & currency",boxAdmin:"Dashboard language & currency",apply:"Apply",setOk:"Saved",tClicks:"Buy clicks",tSales:"Confirmed sales",tRev:"Total revenue",tProfit:"Your net profit",addT:"Add a real product with your commission link",namePh:"Product name",pricePh:"Price $",oldPh:"Old price $ (optional)",imgPh:"Image URL",commPh:"Your commission % (e.g. 8)",urlPh:"Commission link (your tracked AliExpress URL)",imgsPh:"Extra image URLs — one per line (up to 20)",vidPh:"Video URL (mp4 or YouTube) — optional",upImgs:"Upload images from device (up to 20)",upVid:"Upload video from device (mp4 up to 80MB)",saveBtn:"Save product",newBtn:"New",cleanBtn:"Clean unused files",cleaned:n=>`${n} files removed`,saveOk:"Saved",saveBad:"Missing data: name, price and commission link",listT:"Your products & profits",clearBtn:"Delete demo products",thP:"Product",thPr:"Price",thC:"Comm.%",thCl:"Clicks",thS:"Sales",thPf:"Profit",thA:"Actions",sale:"+ Sale",edit:"Edit",del:"Delete",askAmt:"Sale amount $ (blank = product price)",askClear:"Delete all demo products?",legend:"Green = works · Red = not a direct image link",uploading:"Uploading...",upFail:"Upload failed",curImgs:"Current product images — press × to remove:"}};
+let KEY='',ALANG='ar';
+const at=k=>AD[ALANG][k]??AD.ar[k]??k;
+function applyAdmin(){document.querySelectorAll('[data-i18n]').forEach(el=>{const v=at(el.dataset.i18n);if(typeof v==='string')el.textContent=v;});
+document.querySelectorAll('[data-i18n-ph]').forEach(el=>el.placeholder=at(el.dataset.i18nPh));
+document.documentElement.lang=ALANG;document.documentElement.dir=ALANG==='en'?'ltr':'rtl';}
 function enter(){KEY=document.getElementById('key').value;load();}
-async function api(path,body){const r=await fetch(path+(body?'':'?key='+encodeURIComponent(KEY)),{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify({...body,key:KEY}):undefined});if(r.status===401){alert('كلمة السر خاطئة');throw 0;}return r.json();}
-async function load(){try{const j=await api('/api/admin/stats');
+async function api(path,body){const r=await fetch(path+(body?'':'?key='+encodeURIComponent(KEY)),{method:body?'POST':'GET',headers:{'Content-Type':'application/json'},body:body?JSON.stringify({...body,key:KEY}):undefined});if(r.status===401){alert(at('badPass'));throw 0;}return r.json();}
+async function load(){try{
+const st=await api('/api/admin/settings');ALANG=st.admin.lang;applyAdmin();
+document.getElementById('s-lang').value=st.store.lang;document.getElementById('a-lang').value=ALANG;
+document.getElementById('s-cur').innerHTML=st.currencies.map(c=>`<option ${c===st.store.currency?'selected':''}>${c}</option>`).join('');
+document.getElementById('a-cur').innerHTML=st.currencies.map(c=>`<option ${c===st.admin.currency?'selected':''}>${c}</option>`).join('');
+const j=await api('/api/admin/stats');
 document.getElementById('login').classList.add('hidden');document.getElementById('panel').classList.remove('hidden');
 document.getElementById('t-clicks').textContent=j.totals.clicks;document.getElementById('t-sales').textContent=j.totals.sales;
-document.getElementById('t-rev').textContent='$'+j.totals.revenue;document.getElementById('t-profit').textContent='$'+j.totals.profit;
+document.getElementById('t-rev').textContent=j.symbol+j.totals.revenue;document.getElementById('t-profit').textContent=j.symbol+j.totals.profit;
 document.getElementById('rows').innerHTML=j.rows.map(p=>`<tr class="border-t border-white/10">
-<td class="p-2">${p.title.slice(0,40)}</td><td class="p-2 text-center">$${p.price}</td><td class="p-2 text-center">${p.commission}%</td>
-<td class="p-2 text-center">${p.clicks}</td><td class="p-2 text-center">${p.sales}</td><td class="p-2 text-center gold-text font-black">$${p.profit}</td>
-<td class="p-2 text-center whitespace-nowrap"><button onclick="sale('${p.id}')" class="text-xs bg-emerald-600 px-2 py-1 rounded">+ بيع</button>
-<button onclick="editRow('${p.id}')" class="text-xs bg-blue-700 px-2 py-1 rounded">تعديل</button>
-<button onclick="del('${p.id}')" class="text-xs bg-red-700 px-2 py-1 rounded">حذف</button></td></tr>`).join('');
+<td class="p-2">${p.title.slice(0,40)}</td><td class="p-2 text-center">${j.symbol}${p.price}</td><td class="p-2 text-center">${p.commission}%</td>
+<td class="p-2 text-center">${p.clicks}</td><td class="p-2 text-center">${p.sales}</td><td class="p-2 text-center gold-text font-black">${j.symbol}${p.profit}</td>
+<td class="p-2 text-center whitespace-nowrap"><button onclick="sale('${p.id}')" class="text-xs bg-emerald-600 px-2 py-1 rounded">${at('sale')}</button>
+<button onclick="editRow('${p.id}')" class="text-xs bg-blue-700 px-2 py-1 rounded">${at('edit')}</button>
+<button onclick="del('${p.id}')" class="text-xs bg-red-700 px-2 py-1 rounded">${at('del')}</button></td></tr>`).join('');
 }catch(e){}}
+async function saveSettings(scope){const l=document.getElementById(scope==='store'?'s-lang':'a-lang').value;const c=document.getElementById(scope==='store'?'s-cur':'a-cur').value;
+await api('/api/admin/settings',{[scope]:{lang:l,currency:c}});document.getElementById('fmsg').textContent=at('setOk');load();}
 async function saveProduct(){const g=id=>document.getElementById(id).value;
 const j=await api('/api/admin/product',{id:g('f-id')||undefined,title:g('f-title'),price:g('f-price'),oldPrice:g('f-old'),image:g('f-img'),images:g('f-images'),video:g('f-video'),url:g('f-url'),commission:g('f-comm')||undefined});
-document.getElementById('fmsg').textContent=j.ok?'تم الحفظ':'بيانات ناقصة: الاسم والسعر ورابط العمولة';if(j.ok)resetForm();load();}
-function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');document.getElementById('up-imgs').value='';document.getElementById('up-vid').value='';document.getElementById('prev-imgs').innerHTML='';document.getElementById('prev-vid').textContent='';document.getElementById('prev-links').innerHTML='';}
-// معاينة حية لروابط الصور الملصقة — تكشف الرابط الذي ليس صورة مباشرة
-function previewLinks(){const box=document.getElementById('prev-links');
-const urls=[document.getElementById('f-img').value.trim(),...document.getElementById('f-images').value.split('\n').map(s=>s.trim())].filter(u=>/^https?:\/\//i.test(u)).slice(0,8);
-box.innerHTML=urls.map(u=>`<span class="relative"><img src="${u}" class="h-14 w-14 object-cover rounded border border-white/20" onload="this.style.borderColor='#22c55e'" onerror="this.style.borderColor='#ef4444';this.title='الرابط لا يعمل كصورة مباشرة'"/></span>`).join('')
-+(urls.length?'<span class="opacity-60 w-full">الأخضر = يعمل · الأحمر = ليس رابط صورة مباشر (انسخ رابط الصورة نفسها لا صفحة المنتج)</span>':'');}
+document.getElementById('fmsg').textContent=j.ok?at('saveOk'):at('saveBad');if(j.ok)resetForm();load();}
+function resetForm(){['f-id','f-title','f-price','f-old','f-img','f-images','f-video','f-url','f-comm'].forEach(id=>document.getElementById(id).value='');document.getElementById('up-imgs').value='';document.getElementById('up-vid').value='';document.getElementById('prev-imgs').innerHTML='';document.getElementById('prev-vid').textContent='';document.getElementById('prev-links').innerHTML='';document.getElementById('cur-imgs').innerHTML='';}
+// حذف صورة واحدة من المنتج أثناء التعديل
+function dropImg(u){const main=document.getElementById('f-img');if(main.value.trim()===u)main.value='';
+const ta=document.getElementById('f-images');ta.value=ta.value.split('\n').map(s=>s.trim()).filter(s=>s&&s!==u).join('\n');renderCur();previewLinks();}
+function renderCur(){const box=document.getElementById('cur-imgs');
+const urls=[document.getElementById('f-img').value.trim(),...document.getElementById('f-images').value.split('\n').map(s=>s.trim())].filter(u=>u);
+box.innerHTML=urls.length?`<span class="opacity-60 w-full">${at('curImgs')}</span>`+urls.map(u=>`<span class="relative"><img src="${u}" class="h-14 w-14 object-cover rounded border border-white/20"/><button onclick="dropImg('${u.replace(/'/g,"")}')" class="absolute -top-2 -right-2 bg-red-600 rounded-full w-5 h-5 text-xs leading-none">×</button></span>`).join(''):'';}
+function previewLinks(){renderCur();const box=document.getElementById('prev-links');
+const urls=[...document.getElementById('f-images').value.split('\n').map(s=>s.trim())].filter(u=>/^https?:\/\//i.test(u)).slice(0,20);
+box.innerHTML=urls.length?urls.map(u=>`<img src="${u}" class="h-14 w-14 object-cover rounded border border-white/20" onload="this.style.borderColor='#22c55e'" onerror="this.style.borderColor='#ef4444'"/>`).join('')+`<span class="opacity-60 w-full">${at('legend')}</span>`:'';}
 async function uploadImages(){const inp=document.getElementById('up-imgs');if(!inp.files.length)return;
-document.getElementById('prev-imgs').innerHTML='جارٍ الرفع...';
-const fd=new FormData();for(const f of inp.files)fd.append('images',f);
+document.getElementById('prev-imgs').innerHTML=at('uploading');
+const fd=new FormData();for(const f of [...inp.files].slice(0,20))fd.append('images',f);
 const r=await fetch('/api/admin/upload-images?key='+encodeURIComponent(KEY),{method:'POST',body:fd});const j=await r.json();
-if(!j.ok){document.getElementById('prev-imgs').innerHTML='فشل الرفع';return;}
+if(!j.ok){document.getElementById('prev-imgs').innerHTML=at('upFail');return;}
 const ta=document.getElementById('f-images');ta.value=(ta.value?ta.value+'\n':'')+j.urls.join('\n');
-document.getElementById('prev-imgs').innerHTML=j.urls.map(u=>`<img src="${u}" class="h-14 w-14 object-cover rounded"/>`).join('');}
+document.getElementById('prev-imgs').innerHTML=j.urls.map(u=>`<img src="${u}" class="h-14 w-14 object-cover rounded"/>`).join('');renderCur();}
 async function uploadVideo(){const inp=document.getElementById('up-vid');if(!inp.files.length)return;
-document.getElementById('prev-vid').textContent='جارٍ الرفع...';
+document.getElementById('prev-vid').textContent=at('uploading');
 const fd=new FormData();fd.append('video',inp.files[0]);
 const r=await fetch('/api/admin/upload-video?key='+encodeURIComponent(KEY),{method:'POST',body:fd});const j=await r.json();
-if(!j.ok){document.getElementById('prev-vid').textContent='فشل الرفع';return;}
-document.getElementById('f-video').value=j.url;document.getElementById('prev-vid').textContent='تم: '+j.url;}
-async function loadStore(){try{const h=await (await fetch('/api/health')).json();
-document.getElementById('sb-info').textContent=`${h.products} منتج · ${h.subscribers} مشترك · بريد ${h.mail} · تيليجرام ${h.telegram?'مفعل':'—'}`;}catch{}}
-loadStore();
+if(!j.ok){document.getElementById('prev-vid').textContent=at('upFail');return;}
+document.getElementById('f-video').value=j.url;document.getElementById('prev-vid').textContent=j.url;}
+async function cleanup(){const j=await api('/api/admin/upload-cleanup',{});document.getElementById('fmsg').textContent=at('cleaned')(j.removed);}
 async function editRow(id){const j=await api('/api/admin/products');const p=(j.items||[]).find(x=>String(x.id)===String(id));if(!p)return;
 const s=(v,id)=>document.getElementById(id).value=v||'';s(p.id,'f-id');s(p.title,'f-title');s(p.price,'f-price');s(p.oldPrice,'f-old');s(p.image,'f-img');
 s((p.images||[]).join('\n'),'f-images');s(p.video,'f-video');s(p.url,'f-url');s(p.commission,'f-comm');previewLinks();window.scrollTo({top:0,behavior:'smooth'});}
 async function del(id){await api('/api/admin/product/delete',{id});load();}
-async function sale(id){const a=prompt('مبلغ البيع $ (اتركه فارغاً لسعر المنتج)','');if(a===null)return;await api('/api/admin/sale',{id,amount:a||undefined});load();}
-async function clearDemo(){if(confirm('حذف كل المنتجات التجريبية؟')){await api('/api/admin/clear-demo',{});load();}}
+async function sale(id){const a=prompt(at('askAmt'),'');if(a===null)return;await api('/api/admin/sale',{id,amount:a||undefined});load();}
+async function clearDemo(){if(confirm(at('askClear'))){await api('/api/admin/clear-demo',{});load();}}
+async function loadStore(){try{const h=await (await fetch('/api/health')).json();
+document.getElementById('sb-info').textContent=`${h.products} · ${h.subscribers} · ${h.mail} · ${h.telegram?'TG ✓':'TG —'}`;}catch{}}
+applyAdmin();loadStore();
 </script>
 </body></html>
