@@ -566,7 +566,7 @@ app.get('/p/:id', (req, res) => {
 <body><main class="max-w-3xl mx-auto p-4">
 <a href="/" class="text-yellow-200/80">${T.back}</a>
 <div class="glass rounded-3xl p-6 mt-3">
-<div class="mb-4"><img id="gmain" src="${escHtml(gallery[0] || '')}" class="h-64 w-full object-contain mx-auto rounded-2xl bg-white/95 p-3"/>
+<div class="mb-4"><div id="zoom" class="rounded-2xl bg-white/95 p-3 overflow-hidden cursor-zoom-in"><img id="gmain" src="${escHtml(gallery[0] || '')}" class="h-64 w-full object-contain mx-auto" style="transition:transform .2s"/></div>
 ${gallery.length > 1 ? `<div class="flex gap-2 mt-2 justify-center flex-wrap">` + gallery.map((g, i) => `<img src="${escHtml(g)}" onclick="document.getElementById('gmain').src=this.src" onmouseover="document.getElementById('gmain').src=this.src" class="h-16 w-16 object-contain rounded-xl bg-white/95 p-1 cursor-pointer border ${i === 0 ? 'border-yellow-500' : 'border-white/20'}"/>`).join('') + `</div>` : ''}</div>
 ${videoHtml}
 <div class="font-amiri text-2xl mb-1">${escHtml(p.title)}</div>
@@ -594,7 +594,14 @@ ${related.length ? `<h2 class="font-black mt-6 mb-2 text-lg">${T.related}</h2><d
 <a href="/go/${encodeURIComponent(p.id)}" target="_blank" rel="nofollow sponsored" class="gold-btn flex-1 text-center rounded-full py-2.5 font-black">${T.buy}</a>
 </div></div>
 <div class="h-20 md:hidden"></div>
-<script>async function sendRev(){const r=await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:${JSON.stringify(p.id)},name:document.getElementById('rn').value,rating:document.getElementById('rr').value,text:document.getElementById('rt').value})});if(r.ok)location.reload();else alert('اكتب تقييماً صحيحاً');}</script>
+<script>
+(function(){const z=document.getElementById('zoom'),img=document.getElementById('gmain');
+if(z&&img&&matchMedia('(hover:hover)').matches){
+z.addEventListener('mousemove',e=>{const r=z.getBoundingClientRect();
+const x=((e.clientX-r.left)/r.width*100).toFixed(1),y=((e.clientY-r.top)/r.height*100).toFixed(1);
+img.style.transformOrigin=x+'% '+y+'%';img.style.transform='scale(2)';});
+z.addEventListener('mouseleave',()=>{img.style.transform='scale(1)';});}})();
+async function sendRev(){const r=await fetch('/api/reviews',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:${JSON.stringify(p.id)},name:document.getElementById('rn').value,rating:document.getElementById('rr').value,text:document.getElementById('rt').value})});if(r.ok)location.reload();else alert('اكتب تقييماً صحيحاً');}</script>
 </body></html>`);
   } catch (e) { res.status(500).type('text/html').send('خطأ داخلي'); }
 });

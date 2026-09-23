@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com"></script>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js"}}</script>
 <style>
 :root{--gold:#D4AF37;--champ:#F3DFA0;--ink:#0A0A0F;--ivory:#F5F1E6}
 html{overflow-x:clip}
@@ -92,10 +93,10 @@ select option{background:#14141C}
 <div><div class="font-black text-2xl gold-text">300</div><div class="text-xs opacity-60" data-i18n="sE">ايميل عروض يومياً</div></div>
 <div><div class="font-black text-2xl gold-text">24/7</div><div class="text-xs opacity-60" data-i18n="sA">تحديث تلقائي</div></div>
 </div></div>
-<div class="stage relative h-[380px] hidden md:block" id="stage">
-<div class="float-card glass rounded-3xl p-4 absolute w-60" style="top:10px;right:40px;animation-delay:0s"><img data-hero="0" class="h-44 w-full object-contain rounded-2xl bg-white/90"/><div data-herot="0" class="text-sm font-bold mt-2 h-10 overflow-hidden"></div><div data-herop="0" class="gold-text font-black"></div></div>
-<div class="float-card glass rounded-3xl p-4 absolute w-52" style="bottom:0;right:230px;animation-delay:-2.5s"><img data-hero="1" class="h-36 w-full object-contain rounded-2xl bg-white/90"/><div data-herot="1" class="text-xs font-bold mt-2 h-8 overflow-hidden"></div><div data-herop="1" class="gold-text font-black text-sm"></div></div>
-<div class="float-card glass rounded-3xl p-3 absolute w-44" style="top:120px;left:0;animation-delay:-5s"><img data-hero="2" class="h-28 w-full object-contain rounded-2xl bg-white/90"/><div data-herop="2" class="gold-text font-black text-sm mt-1"></div></div>
+<div class="relative h-[380px] hidden md:block" id="stage">
+<div class="absolute inset-0 rounded-3xl" style="background:radial-gradient(circle at 50% 45%,rgba(212,175,55,.22),transparent 65%)"></div>
+<canvas id="gl" class="w-full h-full rounded-3xl relative"></canvas>
+<div class="absolute bottom-3 right-4 text-xs opacity-60">اسحب لتدوير الجوهرة ✦</div>
 </div>
 </div>
 </section>
@@ -268,5 +269,40 @@ if(stage&&!matchMedia('(prefers-reduced-motion:reduce)').matches){
 }
 applyI18n();health();boot().then(()=>{load();initRef();});
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{});});}
+// جوهرة 3D تفاعلية (Three.js) — تعمل بدونها الصفحة بشكل طبيعي
+(function(){const cv=document.getElementById('gl');if(!cv)return;
+const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
+import('three').then(THREE=>{
+const renderer=new THREE.WebGLRenderer({canvas:cv,alpha:true,antialias:true});
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(42,1,.1,100);camera.position.set(0,.4,6.2);
+scene.add(new THREE.AmbientLight(0xfff2cc,.9));
+const key=new THREE.DirectionalLight(0xffffff,1.6);key.position.set(3,5,4);scene.add(key);
+const rim=new THREE.DirectionalLight(0xd4af37,1.1);rim.position.set(-4,-2,-3);scene.add(rim);
+const gold=new THREE.MeshStandardMaterial({color:0xd4af37,metalness:.95,roughness:.18});
+const gem=new THREE.Group();
+const core=new THREE.Mesh(new THREE.OctahedronGeometry(1.15,0),gold);gem.add(core);
+const cage=new THREE.Mesh(new THREE.OctahedronGeometry(1.16,0),new THREE.MeshBasicMaterial({color:0xf7e7b0,wireframe:true,transparent:true,opacity:.35}));gem.add(cage);
+const r1=new THREE.Mesh(new THREE.TorusGeometry(1.9,.045,16,120),gold);r1.rotation.x=1.25;gem.add(r1);
+const r2=new THREE.Mesh(new THREE.TorusGeometry(2.3,.03,16,120),new THREE.MeshStandardMaterial({color:0x8a6a1c,metalness:.9,roughness:.3}));r2.rotation.x=1.1;r2.rotation.y=.4;gem.add(r2);
+scene.add(gem);
+const pn=[];{const g=new THREE.BufferGeometry();const pos=new Float32Array(240*3);
+for(let i=0;i<240;i++){const r=2.6+Math.random()*3,th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+pos[i*3]=r*Math.sin(ph)*Math.cos(th);pos[i*3+1]=r*Math.cos(ph)*.7;pos[i*3+2]=r*Math.sin(ph)*Math.sin(th);}
+g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+pn.push(new THREE.Points(g,new THREE.PointsMaterial({color:0xf3dfa0,size:.035,transparent:true,opacity:.8})));scene.add(pn[0]);}
+function size(){const w=cv.clientWidth||600,h=cv.clientHeight||380;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+size();addEventListener('resize',size);
+let vx=.004,vy=.006,drag=false,px=0,py=0;
+cv.style.touchAction='pan-y';
+cv.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;cv.setPointerCapture(e.pointerId);});
+cv.addEventListener('pointermove',e=>{if(!drag)return;vy=(e.clientX-px)*.008;vx=(e.clientY-py)*.008;px=e.clientX;py=e.clientY;});
+addEventListener('pointerup',()=>drag=false);
+let t=0;
+(function loop(){requestAnimationFrame(loop);t+=.01;
+if(!drag&&!reduced){vx*=.96;vy*=.96;gem.rotation.y+=.004+vy;gem.rotation.x+=vx;gem.position.y=Math.sin(t)*.15;}
+else if(drag){gem.rotation.y+=vy;gem.rotation.x+=vx;}
+pn[0].rotation.y+=.0006;renderer.render(scene,camera);})();
+}).catch(()=>{cv.style.display='none';});})();
 </script>
 </body></html>
