@@ -172,8 +172,10 @@ async function load(){
   card.addEventListener('mouseleave',()=>card.style.transform='');
  });
  const hero=j.items.slice(0,3);
- hero.forEach((p,i)=>{const im=document.querySelector(`[data-hero="${i}"]`),t2=document.querySelector(`[data-herot="${i}"]`),pr=document.querySelector(`[data-herop="${i}"]`);
-  if(im&&p.image)im.src=p.image; if(t2&&p.title)t2.textContent=p.title; if(pr)pr.textContent=(p.symbol||'$')+(p.priceDisplay??p.price);});
+ for(let i=0;i<3;i++){const p=hero[i];const im=document.querySelector(`[data-hero="${i}"]`);if(!im)continue;
+  if(!p){im.closest('.float-card').style.display='none';continue;}im.closest('.float-card').style.display='';
+  const t2=document.querySelector(`[data-herot="${i}"]`),pr=document.querySelector(`[data-herop="${i}"]`);
+  if(p.image)im.src=p.image; if(t2&&p.title)t2.textContent=p.title; if(pr)pr.textContent=(p.symbol||'$')+(p.priceDisplay??p.price);}
  const sp=document.getElementById('st-products'); if(sp)sp.textContent=j.total;
  }catch(err){document.getElementById('grid').innerHTML='<p>'+t('loadFail')+err.message+'</p>';}
 }
